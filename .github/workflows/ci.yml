@@ -1,0 +1,37 @@
+name: Veriflow CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality-check:
+    name: Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Install Rust
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      # 2. Cache Dependencies
+      - uses: Swatinem/rust-cache@v2
+
+      # 3. Check Formatting
+      - name: Check Formatting
+        run: cargo fmt -- --check
+
+      # 4. Linting
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
+
+      # 5. Unit Tests
+      - name: Run Tests
+        run: cargo test --verbose
