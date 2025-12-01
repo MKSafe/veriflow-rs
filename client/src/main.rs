@@ -3,7 +3,6 @@ mod hashing;
 // Start tokio engine
 #[tokio::main]
 async fn main() {
-
     // call function to get file
     let path = std::path::Path::new("dummy.txt");
 
@@ -12,14 +11,14 @@ async fn main() {
 
     // Handle result
     match result {
-      // Success
-      Ok(hash) => {
-        println!("Success!\nSHA256: {hash}");
-      }
+        // Success
+        Ok(hash) => {
+            println!("Success!\nSHA256: {hash}");
+        }
 
-      // Handle error
-      Err(e) => {
-        eprintln!("{e}");
-      }
+        // Handle error
+        Err(e) => {
+            eprintln!("{e}");
+        }
     }
 }

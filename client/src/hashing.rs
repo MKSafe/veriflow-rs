@@ -1,50 +1,49 @@
+use sha2::{Digest, Sha256};
+use std::io;
+use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use std::path::Path;
-use std::io;
-use sha2::{Sha256, Digest};
 
 // convention: 4096B or 8192B
 // Buffer size of 8kb for hashing
 const BUFFER_SIZE: usize = 4096;
 
 pub async fn hash_file(path: &Path) -> io::Result<String> {
-  
-  // Buffer
-  let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
-  
-  // get file with tokio
-  let mut file = File::open(path).await?;
+    // Buffer
+    let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
 
-  // create hasher for SHA256
-  let mut hasher: Sha256 = Sha256::new();
+    // get file with tokio
+    let mut file = File::open(path).await?;
 
-  // read file using buffer
-  loop {
-    // Read chunk from file (number of bytes successfully read)
-    let bytes_read: usize  = file.read(&mut buffer).await?;
+    // create hasher for SHA256
+    let mut hasher: Sha256 = Sha256::new();
 
-    // println!("{bytes_read}");
+    // read file using buffer
+    loop {
+        // Read chunk from file (number of bytes successfully read)
+        let bytes_read: usize = file.read(&mut buffer).await?;
 
-    // finish reading file
-    if bytes_read == 0 {
-      // break loop
-      break;
+        // println!("{bytes_read}");
+
+        // finish reading file
+        if bytes_read == 0 {
+            // break loop
+            break;
+        }
+
+        // load the chunk from file
+        let current_chunk: &[u8] = &buffer[..bytes_read];
+
+        // update hasher with current chunk reference
+        hasher.update(current_chunk);
     }
 
-    // load the chunk from file
-    let current_chunk: &[u8] = &buffer[..bytes_read];
+    // finalise hasher, get its output (byte array)
+    let file_hash = hasher.finalize();
 
-    // update hasher with current chunk reference
-    hasher.update(current_chunk);
-  }
+    // Convert hash (byte array) to hex
+    let file_hash_hex: String = format!("{:x}", file_hash);
 
-  // finalise hasher, get its output (byte array)
-  let file_hash = hasher.finalize();
-
-  // Convert hash (byte array) to hex
-  let file_hash_hex: String = format!("{:x}", file_hash);
-  
-  // Send back if successful
-  Ok(file_hash_hex)
+    // Send back if successful
+    Ok(file_hash_hex)
 }
