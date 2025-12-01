@@ -2,13 +2,24 @@ mod hashing;
 
 // Start tokio engine
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() {
 
     // call function to get file
     let path = std::path::Path::new("dummy.txt");
-    hashing::hash_file(path).await?;
 
+    // get SHA256 of file @path
+    let result: Result<String, std::io::Error> = hashing::hash_file(path).await;
 
-    // Send back if successful
-    Ok(println!("Success!"))
+    // Handle result
+    match result {
+      // Success
+      Ok(hash) => {
+        println!("Success!\nSHA256: {hash}");
+      }
+
+      // Handle error
+      Err(e) => {
+        eprintln!("{e}");
+      }
+    }
 }
