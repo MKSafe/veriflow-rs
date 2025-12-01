@@ -1,9 +1,10 @@
 [package]
-name = "client"
+name = "Veriflow"
 version = "0.1.0"
 edition = "2021"
+description = "A high-performance, asynchronous file transfer CLI built with Rust, Tokio and SHA-256 integrity verification."
 
 [dependencies]
-clap = "4.5.53"
+clap = { version = "4.5.53", features = ["cargo", "derive"] }
 sha2 = "0.10.9"
 tokio = { version = "1.48.0", features = ["full"] }
