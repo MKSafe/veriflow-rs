@@ -1,13 +1,21 @@
+use clap::Parser;
+
+use crate::cli::Args;
+
+mod cli;
 mod hashing;
 
 // Start tokio engine
 #[tokio::main]
 async fn main() {
+    // Parse CLI arguments
+    let args = Args::parse();
+
     // call function to get file
-    let path = std::path::Path::new("dummy.txt");
+    let file_path = &args.file_path;
 
     // get SHA256 of file @path
-    let result: Result<String, std::io::Error> = hashing::hash_file(path).await;
+    let result: Result<String, std::io::Error> = hashing::hash_file(file_path).await;
 
     // Handle result
     match result {
