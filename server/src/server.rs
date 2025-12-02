@@ -20,7 +20,7 @@ impl Listener {
             //returns a new listener struct object
             return Ok(Listener {
                 listener,
-                open_connections: open_connections,
+                open_connections,
             });
         }
         //If the host and port is specified the server will be ran with the passed address
@@ -29,10 +29,10 @@ impl Listener {
         info!("Listener is running");
         //returns a new listener struct
         let open_connections: HashMap<SocketAddr, TcpStream> = HashMap::new();
-        return Ok(Listener {
+        Ok(Listener {
             listener,
-            open_connections: open_connections,
-        });
+            open_connections,
+        })
     }
     /*pub async fn start_listener(&mut self,host: &str, port: &str){
 
@@ -44,11 +44,13 @@ impl Listener {
             match self.listener.accept().await {
                 //when a connec tion is made we deal with it below
                 Ok((mut _stream, addr)) => {
-                    if !self.open_connections.contains_key(&addr) {
+                    if let std::collections::hash_map::Entry::Vacant(e) =
+                        self.open_connections.entry(addr)
+                    {
+                        e.insert(_stream);
                         //if the current address is already connected
                         //let welcom_msg = format!("Welcome to the Veriflow Resource Server\n User: {}",addr);
                         //let write_bytes = _stream.write(welcom_msg.as_bytes()).await?;
-                        self.open_connections.insert(addr, _stream);
                         info!(
                             "User {} has connected. Total: {}",
                             addr,
