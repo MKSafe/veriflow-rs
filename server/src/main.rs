@@ -1,6 +1,5 @@
 mod server;
 use server::Listener;
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {

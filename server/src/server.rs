@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
-use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 pub struct Listener {
@@ -14,13 +13,14 @@ impl Listener {
     //implementation of operations for the Listener struct
     pub async fn new(host: &str, port: &str) -> io::Result<Listener> {
         //When the host or the port is not pressent run the server on the local host
-        if host == "" || port == "" {
+        if host.is_empty() || port.is_empty() {
             let listener = TcpListener::bind("127.0.0.1:8080").await?;
             info!("Listener is running");
+            let open_connections: HashMap<SocketAddr, TcpStream> = HashMap::new();
             //returns a new listener struct object
             return Ok(Listener {
-                listener: listener,
-                open_connections: HashMap::new(),
+                listener,
+                open_connections: open_connections,
             });
         }
         //If the host and port is specified the server will be ran with the passed address
@@ -28,9 +28,10 @@ impl Listener {
         let listener = TcpListener::bind(addr).await?;
         info!("Listener is running");
         //returns a new listener struct
+        let open_connections: HashMap<SocketAddr, TcpStream> = HashMap::new();
         return Ok(Listener {
-            listener: listener,
-            open_connections: HashMap::new(),
+            listener,
+            open_connections: open_connections,
         });
     }
     /*pub async fn start_listener(&mut self,host: &str, port: &str){
