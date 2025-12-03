@@ -15,18 +15,14 @@ impl Listener {
             let listener = TcpListener::bind("127.0.0.1:8080").await?;
             info!("Listener is running");
             //returns a new listener struct object
-            return Ok(Listener {
-                listener,
-            });
+            return Ok(Listener { listener });
         }
         //If the host and port is specified the server will be ran with the passed address
         let addr = format!("{}:{}", host, port);
         let listener = TcpListener::bind(addr).await?;
         info!("Listener is running");
         //returns a new listener struct
-        Ok(Listener {
-            listener,
-        })
+        Ok(Listener { listener })
     }
     /*pub async fn start_listener(&mut self,host: &str, port: &str){
 
@@ -38,15 +34,11 @@ impl Listener {
             match self.listener.accept().await {
                 //when a connection is made we deal with it below
                 Ok((mut _stream, addr)) => {
-                    info!(
-                        "User {} has connected.",
-                        addr,
-                    );
+                    info!("User {} has connected.", addr,);
 
                     tokio::spawn(async move {
-                        let _ = Listener::handle_client(_stream,addr).await;
+                        //let _ = Listener::handle_client(_stream, addr).await;
                     });
-                    
                 }
 
                 Err(e) => error!(
@@ -78,9 +70,10 @@ impl Listener {
             Ok(msg)
         }
     async fn write_to_stream(&mut stream)-> io::Result<u8>{
-        }*/
-
-        async fn handle_client(stream: TcpStream,addr: SocketAddr) ->io::Result<bool>{
-            Ok(true)
         }
+
+    async fn handle_client(stream: TcpStream, addr: SocketAddr) -> io::Result<bool> {
+        Ok(true)
+    }
+    */
 }
