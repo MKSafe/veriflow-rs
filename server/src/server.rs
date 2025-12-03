@@ -1,5 +1,5 @@
 use std::io;
-use tokio::net::{TcpListener};
+use tokio::net::TcpListener;
 use tracing::{error, info};
 pub struct Listener {
     //Struct definition
