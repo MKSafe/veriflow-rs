@@ -1,12 +1,12 @@
 //! File hashing via SHA256
 
+use crate::ui;
+use indicatif::ProgressBar;
 use sha2::{Digest, Sha256};
 use std::io;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use indicatif::ProgressBar;
-use crate::ui;
 
 // convention: 4096B or 8192B
 // Buffer size of 8kb for hashing
@@ -33,7 +33,7 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
     loop {
         // Read chunk from file (number of bytes successfully read)
         let bytes_read: usize = file.read(&mut buffer).await?;
-        
+
         // update progress bar
         progress_bar.inc(bytes_read as u64);
 
