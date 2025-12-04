@@ -6,6 +6,7 @@ use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use indicatif::ProgressBar;
+use crate::ui;
 
 // convention: 4096B or 8192B
 // Buffer size of 8kb for hashing
@@ -21,8 +22,9 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
     // get file metadata
     let file_metadata = file.metadata().await?;
 
-    // create progress bar and set max to len of file
-    let progress_bar: ProgressBar = ProgressBar::new(file_metadata.len());
+    // create progress bar
+    // set max to len of file and operation description
+    let progress_bar: ProgressBar = ui::create_progress_bar(file_metadata.len(), "Hashing ...");
 
     // create hasher for SHA256
     let mut hasher: Sha256 = Sha256::new();
@@ -50,6 +52,9 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
 
     // finalise hasher, get its output (byte array)
     let file_hash = hasher.finalize();
+
+    // finish progress bar
+    progress_bar.finish_with_message("Hashing Complete!");
 
     // Convert hash (byte array) to hex
     let file_hash_hex: String = format!("{:x}", file_hash);
