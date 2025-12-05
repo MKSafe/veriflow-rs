@@ -1,6 +1,5 @@
 use std::io;
-use std::net::SocketAddr;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tracing::{error, info};
 pub struct Listener {
     //Struct definition
@@ -15,18 +14,14 @@ impl Listener {
             let listener = TcpListener::bind("127.0.0.1:8080").await?;
             info!("Listener is running");
             //returns a new listener struct object
-            return Ok(Listener {
-                listener,
-            });
+            return Ok(Listener { listener });
         }
         //If the host and port is specified the server will be ran with the passed address
         let addr = format!("{}:{}", host, port);
         let listener = TcpListener::bind(addr).await?;
         info!("Listener is running");
         //returns a new listener struct
-        Ok(Listener {
-            listener,
-        })
+        Ok(Listener { listener })
     }
     /*pub async fn start_listener(&mut self,host: &str, port: &str){
 
@@ -37,12 +32,14 @@ impl Listener {
             //The listener.accept() function can possibly throw an error so we handle it using the match keyword
             match self.listener.accept().await {
                 //when a connec tion is made we deal with it below
-                Ok((mut _stream, addr)) => { 
-                    info!(
-                        "User {} has connected.",
-                        addr,
-                    );
                     
+                //when a connection is made we deal with it below
+                Ok((mut _stream, addr)) => {
+                    info!("User {} has connected.", addr,);
+
+                    tokio::spawn(async move {
+                        //let _ = Listener::handle_client(_stream, addr).await;
+                    });
                 }
 
                 Err(e) => error!(
@@ -76,13 +73,8 @@ impl Listener {
     async fn write_to_stream(&mut stream)-> io::Result<u8>{
         }
 
-        async fn handle_client(stream: TcpStream,) ->io::Result<bool>{
-            tokio::spawn(async move {
-                          if let Err(e) = Listener::read_stream(stream).await{
-                                    let addr = stream.peer_addr();
-                                    error!("Error with {addr}:{e}")
-                                }
-                            });
-            return Ok(true);
-        }*/
+    async fn handle_client(stream: TcpStream, addr: SocketAddr) -> io::Result<bool> {
+        Ok(true)
+    }
+    */
 }

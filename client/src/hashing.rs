@@ -1,5 +1,7 @@
 //! File hashing via SHA256
 
+use crate::ui;
+use indicatif::ProgressBar;
 use sha2::{Digest, Sha256};
 use std::io;
 use std::path::Path;
@@ -17,6 +19,13 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
     // get file with tokio
     let mut file = File::open(path).await?;
 
+    // get file metadata
+    let file_metadata = file.metadata().await?;
+
+    // create progress bar
+    // set max to len of file and operation description
+    let progress_bar: ProgressBar = ui::create_progress_bar(file_metadata.len(), "Hashing ...");
+
     // create hasher for SHA256
     let mut hasher: Sha256 = Sha256::new();
 
@@ -25,7 +34,8 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
         // Read chunk from file (number of bytes successfully read)
         let bytes_read: usize = file.read(&mut buffer).await?;
 
-        // println!("{bytes_read}");
+        // update progress bar
+        progress_bar.inc(bytes_read as u64);
 
         // finish reading file
         if bytes_read == 0 {
@@ -42,6 +52,9 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
 
     // finalise hasher, get its output (byte array)
     let file_hash = hasher.finalize();
+
+    // finish progress bar
+    progress_bar.finish_with_message("Hashing Complete!");
 
     // Convert hash (byte array) to hex
     let file_hash_hex: String = format!("{:x}", file_hash);

@@ -4,6 +4,7 @@ use crate::cli::Args;
 
 mod cli;
 mod hashing;
+mod ui;
 
 // Start tokio engine
 #[tokio::main]
@@ -12,7 +13,7 @@ async fn main() {
     let args = Args::parse();
 
     // call function to get file
-    let file_path = &args.file_path;
+    let file_path = &args.upload.unwrap();
 
     // get SHA256 of file @path
     let result: Result<String, std::io::Error> = hashing::hash_file(file_path).await;
