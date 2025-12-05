@@ -22,7 +22,7 @@ pub struct Args {
     /// Download file from server
     #[arg(short, long, group = "operation")]
     pub download: Option<String>,
-    
+
     /// List all files on server
     #[arg(short, long, group = "operation")]
     pub list: bool,
