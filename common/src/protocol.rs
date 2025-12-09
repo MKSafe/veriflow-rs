@@ -54,7 +54,7 @@ impl ProtocolConnection{
                 }
                 Err(e)=>{
                     //if there is an error with retriving the socket state print the error to console 
-                    error!("The following error has occured: {}",e)
+                    error!("The following error has occured: {}",e);
                     return Ok(false);
                 }
             };
@@ -68,29 +68,67 @@ impl ProtocolConnection{
         }
     }*/
 
-    pub async fn read(&self,buffer_len : Option<u8>)-> io::Result<Vec<u8>>{
-        let mut len_buff:Option<Vec<u8>> = None;
-        let mut body_buff:Option<Vec<u8>> = None;
-        if buffer_len.is_none() {
-            len_buff = Some([Vec<u8>::with_capacity(4)]);
-        }
-        if len_buff.is_some(){
+    pub async fn read_prefix(&self)->io::Result<usize>{
+        let mut buf = [0u8,4];
+        let mut read = 0;
+        while read < 4{
+            match self.stream.ready(Interest::READABLE).await{
+                Ok(state)=>{
+                    if state.is_readable(){
+                        match self.stream.try_read(&mut buf[read..]){
+                            Ok(0)=>{
+                                info!("User disconnected");
+                                break;
+                            }
+                            Ok(n)=>{
+                                read += n;
+                            }
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {continue;}
+                            Err(e)=>{error!("The following error has occured {}",e);}
+                        }
+                    }else if state.is_read_closed(){
+                        error!("The stream is closed for the read operation.")
+                    }
 
-        }
-        match self.stream.ready(Interest::READABLE).await{
-            Ok(state)=>{
-                if state.is_readable(){
-                    self.stream.try_read()
-                }else if state.is_read_closed(){
-                
                 }
-
-            }
-            Err(e)=>{
-                error!("An error has occured trying to read data: {}",e);
-                return Ok([0]);
+                Err(e)=>{
+                    error!("An error has occured trying to read data: {}",e);
+                    return Ok([0]);
+                }
             }
         }
-        Ok(Vec<u8>::new())
+        Ok(u32::from_be_bytes(buf) as usize)
+    }
+
+    pub async fn read_body(&self,buffer_len : usize)-> io::Result<Vec<u8>>{
+        let mut buf = vec![0u8;buffer_len];
+        let mut read = 0;
+        while read < buffer_len{
+            match self.stream.ready(Interest::READABLE).await{
+                Ok(state)=>{
+                    if state.is_readable(){
+                        match self.stream.try_read(&mut buf[read..]){
+                            Ok(0)=>{
+                                info!("User disconnected");
+                                break;
+                            }
+                            Ok(n)=>{
+                                read += n;
+                            }
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {continue;}
+                            Err(e)=>{error!("The following error has occured {}",e);}
+                        }
+                    }else if state.is_read_closed(){
+                        error!("The stream is closed for the read operation.")
+                    }
+
+                }
+                Err(e)=>{
+                    error!("An error has occured trying to read data: {}",e);
+                    return Ok([0]);
+                }
+            }
+        }
+        Ok(buf)
     }
 }
