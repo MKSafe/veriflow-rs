@@ -32,7 +32,7 @@ impl Listener {
             //The listener.accept() function can possibly throw an error so we handle it using the match keyword
             match self.listener.accept().await {
                 //when a connec tion is made we deal with it below
-                    
+
                 //when a connection is made we deal with it below
                 Ok((mut _stream, addr)) => {
                     info!("User {} has connected.", addr,);

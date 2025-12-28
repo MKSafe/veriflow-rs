@@ -1,131 +1,137 @@
+use crate::FileHeader;
 use std::io;
-use tokio::net::TcpStream;
 use tokio::io::Interest;
 use tokio::io::Ready;
+use tokio::net::TcpStream;
 use tracing::{error, info};
-struct ProtocolConnection{
+struct ProtocolConnection {
     stream: TcpStream,
 }
 
-impl ProtocolConnection{
-    pub async fn new(_stream : TcpStream)-> io::Result<ProtocolConnection>{
+impl ProtocolConnection {
+    pub async fn new(stream: TcpStream) -> io::Result<ProtocolConnection> {
         //returns a new connection object
-        Ok(ProtocolConnection{_stream})
+        Ok(ProtocolConnection { stream })
     }
-    
-    pub async fn send_header(&self, header: FileHeader)->io::Result<bool>{
-        //turns data into bytes and gets the length0.
-        let data_as_bytes = header.to_bytes();
+
+    pub async fn send_header(&self, header: String) -> io::Result<bool> {
+        //turns data into bytes and gets the length
+        let data_as_bytes = header.as_bytes();
         let data_byte_len = data_as_bytes.len() as u32;
         //initialises a buffer with the size of the data length prefix and data length
-        let mut buffer = Vec::with_capacity(4+data_as_bytes.len());
+        let mut buffer = Vec::with_capacity(4 + data_as_bytes.len());
         //adds the len prefix to the buffer
         buffer.extend_from_slice(&data_byte_len.to_be_bytes());
         //adds the data to the byte buffer
         buffer.extend_from_slice(&data_as_bytes);
 
-        loop{
-            //checks the streams state for writability 
-            match self.stream.ready(Interest::WRITEABLE).await{
-                Ok(state)=>{
-                    if state.is_writable(){
+        loop {
+            //checks the streams state for writability
+            match self.stream.ready(Interest::WRITABLE).await {
+                Ok(state) => {
+                    if state.is_writable() {
                         //if the state is writeable send the packet
-                        match self.stream.try_write.await{
-                            Ok(n)=>{
+                        match self.stream.try_write(&buffer) {
+                            Ok(n) => {
                                 //check if the whole packet has been sent
-                                if n == packet.len(){
+                                if n == buffer.len() {
                                     return Ok(true);
-                                }else{
-                                    packet.drain(..n);
+                                } else {
+                                    buffer.drain(..n);
                                 }
                             }
                             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                                 continue;
                             }
-                            Err(e) =>{
+                            Err(e) => {
                                 return Err(e.into());
                             }
                         }
-
-                    }else if state.is_write_closed(){
+                    } else if state.is_write_closed() {
                         info!("The socket you are trying to write to is not accessible");
                         return Ok(false);
                     }
                 }
-                Err(e)=>{
-                    //if there is an error with retriving the socket state print the error to console 
-                    error!("The following error has occured: {}",e);
+                Err(e) => {
+                    //if there is an error with retriving the socket state print the error to console
+                    error!("The following error has occured: {}", e);
                     return Ok(false);
                 }
             };
         }
     }
 
-   /* pub async fn send_file(&self,file : Vec<u8>)-> io::Result<bool>{
+    /* pub async fn send_file(&self,file : Vec<u8>)-> io::Result<bool>{
         loop{
             //todo
-        
+
         }
     }*/
 
-    pub async fn read_prefix(&self)->io::Result<usize>{
-        let mut buf = [0u8,4];
-        let mut read = 0;
-        while read < 4{
-            match self.stream.ready(Interest::READABLE).await{
-                Ok(state)=>{
-                    if state.is_readable(){
-                        match self.stream.try_read(&mut buf[read..]){
-                            Ok(0)=>{
+    pub async fn read_prefix(&self) -> io::Result<usize> {
+        let mut buf: [u8; 4] = [0u8; 4];
+        let mut read: usize = 0;
+        while read < 4 {
+            match self.stream.ready(Interest::READABLE).await {
+                Ok(state) => {
+                    if state.is_readable() {
+                        match self.stream.try_read(&mut buf[read..]) {
+                            Ok(0) => {
                                 info!("User disconnected");
                                 break;
                             }
-                            Ok(n)=>{
+                            Ok(n) => {
                                 read += n;
                             }
-                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {continue;}
-                            Err(e)=>{error!("The following error has occured {}",e);}
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                continue;
+                            }
+                            Err(e) => {
+                                error!("The following error has occured {}", e);
+                            }
                         }
-                    }else if state.is_read_closed(){
+                    } else if state.is_read_closed() {
                         error!("The stream is closed for the read operation.")
                     }
-
                 }
-                Err(e)=>{
-                    error!("An error has occured trying to read data: {}",e);
-                    return Ok([0]);
+                Err(e) => {
+                    error!("An error has occured trying to read data: {}", e);
+                    return Ok(0);
                 }
             }
         }
         Ok(u32::from_be_bytes(buf) as usize)
     }
 
-    pub async fn read_body(&self,buffer_len : usize)-> io::Result<Vec<u8>>{
-        let mut buf = vec![0u8;buffer_len];
+    pub async fn read_body(&self, buffer_len: usize) -> io::Result<Vec<u8>> {
+        let mut buf = vec![0u8; buffer_len];
         let mut read = 0;
-        while read < buffer_len{
-            match self.stream.ready(Interest::READABLE).await{
-                Ok(state)=>{
-                    if state.is_readable(){
-                        match self.stream.try_read(&mut buf[read..]){
-                            Ok(0)=>{
+        while read < buffer_len {
+            match self.stream.ready(Interest::READABLE).await {
+                Ok(state) => {
+                    if state.is_readable() {
+                        match self.stream.try_read(&mut buf[read..]) {
+                            Ok(0) => {
                                 info!("User disconnected");
                                 break;
                             }
-                            Ok(n)=>{
+                            Ok(n) => {
                                 read += n;
                             }
-                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {continue;}
-                            Err(e)=>{error!("The following error has occured {}",e);}
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                continue;
+                            }
+                            Err(e) => {
+                                error!("The following error has occured {}", e);
+                            }
                         }
-                    }else if state.is_read_closed(){
+                    } else if state.is_read_closed() {
                         error!("The stream is closed for the read operation.")
                     }
-
                 }
-                Err(e)=>{
-                    error!("An error has occured trying to read data: {}",e);
-                    return Ok([0]);
+                Err(e) => {
+                    error!("An error has occured trying to read data: {}", e);
+                    return Ok(vec![0]);
                 }
             }
         }
