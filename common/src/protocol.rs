@@ -4,7 +4,7 @@ use tokio::io::Interest;
 use tokio::io::Ready;
 use tokio::net::TcpStream;
 use tracing::{error, info};
-struct ProtocolConnection {
+pub struct ProtocolConnection {
     stream: TcpStream,
 }
 
@@ -14,7 +14,7 @@ impl ProtocolConnection {
         Ok(ProtocolConnection { stream })
     }
 
-    pub async fn send_header(&self, header: String) -> io::Result<bool> {
+    pub async fn send_header(&self, header: &str) -> io::Result<bool> {
         //turns data into bytes and gets the length
         let data_as_bytes = header.as_bytes();
         let data_byte_len = data_as_bytes.len() as u32;
