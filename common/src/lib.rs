@@ -28,6 +28,10 @@ pub enum VeriflowError {
     // JSON Error
     #[error("Serialisation Error: {0}")]
     JSON(#[from] serde_json::Error),
+
+    // File Path Error
+    #[error("Invalid Path: Could not extract a valid filename from the provided path")]
+    InvalidPath
 }
 
 // Allow writing Result<String> instead of Result<String, VeriflowError>
