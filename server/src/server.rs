@@ -37,12 +37,6 @@ impl Listener {
                 //when a connection is made we deal with it below
                 Ok((mut _stream, addr)) => {
                     info!("User {} has connected.", addr,);
-                    let connection = ProtocolConnection::new(_stream).await?;
-                    let prefix_size = connection.read_prefix().await?;
-                    let byte_header = connection.read_body(prefix_size).await?;
-                    let header = String::from_utf8_lossy(&byte_header);
-                    info!("The header is {}",header);
-                    let result = connection.send_header(&header).await;
                 }
 
                 Err(e) => error!(
