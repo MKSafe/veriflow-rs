@@ -1,7 +1,5 @@
-use crate::FileHeader;
 use std::io;
 use tokio::io::Interest;
-use tokio::io::Ready;
 use tokio::net::TcpStream;
 use tracing::{error, info};
 pub struct ProtocolConnection {
@@ -52,7 +50,7 @@ impl ProtocolConnection {
                         return Ok(false);
                     }
                 }
-                Err(e ) => {
+                Err(e) => {
                     //if there is an error with retriving the socket state print the error to console
                     error!("The following error has occured: {}", e);
                     return Ok(false);
@@ -61,36 +59,34 @@ impl ProtocolConnection {
         }
     }
 
-    pub async fn send_file(&self,file : &mut Vec<u8>)-> io::Result<bool>{
-        loop{
+    pub async fn send_file(&self, file: &mut Vec<u8>) -> io::Result<bool> {
+        loop {
             //todo
             match self.stream.ready(Interest::WRITABLE).await {
-                Ok(state) =>{
-                    if state.is_writable(){
-                        match self.stream.try_write(&file){
-                            Ok(n)=>{
-                                if n == file.len(){
+                Ok(state) => {
+                    if state.is_writable() {
+                        match self.stream.try_write(&file) {
+                            Ok(n) => {
+                                if n == file.len() {
                                     return Ok(true);
-                                }
-                                else{
+                                } else {
                                     file.drain(..n);
                                 }
                             }
-                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock =>{
+                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                                 continue;
                             }
-                            Err(e)=>{
+                            Err(e) => {
                                 return Err(e.into());
                             }
                         }
-                    }
-                    else if state.is_write_closed(){
+                    } else if state.is_write_closed() {
                         info!("The socket you are trying to write to is not accessible");
                         return Ok(false);
                     }
                 }
-                Err(e)=>{
-                    error!("The following error has occured: {}",e);
+                Err(e) => {
+                    error!("The following error has occured: {}", e);
                     return Ok(false);
                 }
             }

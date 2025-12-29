@@ -1,4 +1,3 @@
-use common::protocol::ProtocolConnection;
 use std::io;
 use tokio::net::TcpListener;
 use tracing::{error, info};
