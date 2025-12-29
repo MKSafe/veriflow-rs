@@ -39,14 +39,31 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
   let file_header: FileHeader = FileHeader {
       command: Command::Upload,
       name: String::from(file_name),
-      size: 4001,
-      hash: String::from("abc123def"),
+      size: file_size,
+      hash: String::from(file_hash),
   };
 
   // Serialise the body
-  
+  // JSON string
+  let header_json = serde_json::to_string(&file_header)?;
 
-  
+  // Convert to raw bytes
+  let json_bytes = header_json.as_bytes();
 
+  //  Get prefix length as u32
+  let json_len = json_bytes.len() as u32;
+  // Use big endian due to network standard (old server cpus)
+  let prefix_bytes = json_len.to_be_bytes();
+
+  // Send the prefix
+  stream.write_all(&prefix_bytes).await?;
+
+  println!("length {json_len}, prefix bytes: {:?}", &prefix_bytes);
+
+  // Send the actual file header
+  stream.write_all(json_bytes).await?;
+
+  // stream the body (file upload)
+  
   Ok(())
 }
