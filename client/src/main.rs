@@ -5,6 +5,7 @@ use crate::cli::Args;
 mod cli;
 mod hashing;
 mod ui;
+mod transfer;
 
 // Start tokio engine
 #[tokio::main]
