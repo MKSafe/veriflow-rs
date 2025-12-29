@@ -4,8 +4,8 @@ use crate::cli::Args;
 
 mod cli;
 mod hashing;
-mod ui;
 mod transfer;
+mod ui;
 
 // Start tokio engine
 #[tokio::main]
@@ -14,15 +14,15 @@ async fn main() {
     let args = Args::parse();
 
     // Handle CLI arguments
-    
+
     // Get the result of the function that is called via cli args
     // Use Some operator for Option
     let result = if let Some(path) = args.upload {
-      // Upload
-      transfer::upload_file(&path, &args.ip).await
+        // Upload
+        transfer::upload_file(&path, &args.ip).await
     } else {
-      println!("WIP...");
-      Ok(())
+        println!("WIP...");
+        Ok(())
     };
 
     // Global Error Handler
@@ -37,16 +37,15 @@ async fn main() {
             eprintln!("{e}");
         }
     }
-    
 
-    /* 
+    /*
 
     // call function to get file
     let file_path = &args.upload.unwrap();
 
     // get SHA256 of file @path
     let result: Result<String, std::io::Error> = hashing::hash_file(file_path).await;
-    
+
 
 
     // Global Error Handler
