@@ -21,7 +21,7 @@ impl ProtocolConnection {
         //adds the len prefix to the buffer
         buffer.extend_from_slice(&data_byte_len.to_be_bytes());
         //adds the data to the byte buffer
-        buffer.extend_from_slice(&data_as_bytes);
+        buffer.extend_from_slice(data_as_bytes);
 
         loop {
             //checks the streams state for writability
@@ -42,7 +42,8 @@ impl ProtocolConnection {
                                 continue;
                             }
                             Err(e) => {
-                                return Err(e.into());
+                                error!("the following error occured {}",e);
+                                return Ok(false);
                             }
                         }
                     } else if state.is_write_closed() {
@@ -61,11 +62,12 @@ impl ProtocolConnection {
 
     pub async fn send_file(&self, file: &mut Vec<u8>) -> io::Result<bool> {
         loop {
-            //todo
+            //checks if the connected stream is active for a write action
             match self.stream.ready(Interest::WRITABLE).await {
                 Ok(state) => {
                     if state.is_writable() {
-                        match self.stream.try_write(&file) {
+                        //when writable the data will be sent 
+                        match self.stream.try_write(file) {
                             Ok(n) => {
                                 if n == file.len() {
                                     return Ok(true);
@@ -73,11 +75,14 @@ impl ProtocolConnection {
                                     file.drain(..n);
                                 }
                             }
+                            //if a blocking error occurs try again
                             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                                 continue;
                             }
+                            //on error quit the loop and send the error
                             Err(e) => {
-                                return Err(e.into());
+                                error!("The following error occured {}",e);
+                                return Ok(false);
                             }
                         }
                     } else if state.is_write_closed() {
