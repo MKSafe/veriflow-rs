@@ -1,7 +1,7 @@
+use common::protocol::ProtocolConnection;
 use std::io;
 use tokio::net::TcpListener;
 use tracing::{error, info};
-use common::protocol::ProtocolConnection;
 pub struct Listener {
     //Struct definition
     listener: TcpListener,

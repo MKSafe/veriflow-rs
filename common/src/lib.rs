@@ -72,9 +72,8 @@ mod tests {
         let header_length = connection.read_prefix().await?;
         let byte_header = connection.read_body(header_length).await?;
         let header = String::from_utf8_lossy(&byte_header);
-        assert_eq!(json_string,header);
+        assert_eq!(json_string, header);
 
         Ok(())
-
     }
 }
