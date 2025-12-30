@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 pub mod protocol;
 use protocol::ProtocolConnection;
+use thiserror::Error;
+
 // cli command arg
 // PartialEQ for unit test
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -19,11 +21,31 @@ pub struct FileHeader {
     pub hash: String, // hex string
 }
 
+// Error Type Struct for wrapping errors
+#[derive(Error, Debug)]
+pub enum VeriflowError {
+    // IO Error
+    #[error("Network/Disk Error: {0}")]
+    Io(#[from] std::io::Error),
+
+    // JSON Error
+    #[error("Serialisation Error: {0}")]
+    JSON(#[from] serde_json::Error),
+
+    // File Path Error
+    #[error("Invalid Path: Could not extract a valid filename from the provided path")]
+    InvalidPath,
+}
+
+// Allow writing Result<String> instead of Result<String, VeriflowError>
+pub type Result<T> = std::result::Result<T, VeriflowError>;
+
 // Tests
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // Test Serialisation and Deserialisation
     #[test]
     fn test_file_header_serialisation() {
         // set file name
@@ -75,5 +97,25 @@ mod tests {
         assert_eq!(json_string, header);
 
         Ok(())
+
+    // Test VeriFlow error type struct
+    #[test]
+    fn test_error_conversion() {
+        // parse non-json into FileHeader
+        fn json_fail() -> super::Result<FileHeader> {
+            let garbage = "not json";
+            // 'from_str' tries to convert string to JSON,
+            // the '?' operator handles the failure by automatically converting the JSON error to custom wrapper error
+            let header: FileHeader = serde_json::from_str(garbage)?;
+            Ok(header)
+        }
+
+        let result = json_fail();
+
+        // test if resturned type is an Error
+        assert!(result.is_err());
+
+        // Verify the error type
+        println!("{}", result.unwrap_err());
     }
 }
