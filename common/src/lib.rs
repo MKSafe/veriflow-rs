@@ -73,14 +73,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_protocol_read_and_write() -> Result<()> {
-        let stream = TcpStream::connect("127.0.0.1:8080").await{
-            Ok() => {
-                info!("connected successfully");
-            }
-            Err(e) => {
-                error!(e);
-            }
-        };
+        let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let connection = ProtocolConnection::new(stream).await?;
 
         // set file name
