@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-use tokio::net::TcpStream;
 pub mod protocol;
-use protocol::ProtocolConnection;
+pub use protocol::ProtocolConnection;
 use thiserror::Error;
 
 // cli command arg
@@ -44,7 +43,7 @@ pub type Result<T> = std::result::Result<T, VeriflowError>;
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use tokio::net::TcpStream;
     // Test Serialisation and Deserialisation
     #[test]
     fn test_file_header_serialisation() {
@@ -90,7 +89,7 @@ mod tests {
         // serialise to JSON (Struct -> String)
         let json_string_wrapped = serde_json::to_string(&original_file_header);
         let json_string = json_string_wrapped.unwrap();
-        let result = connection.send_header(&json_string).await;
+        let _result = connection.send_header(&json_string).await?;
         let header_length = connection.read_prefix().await?;
         let byte_header = connection.read_body(header_length).await?;
         let header = String::from_utf8_lossy(&byte_header);
