@@ -72,7 +72,7 @@ mod tests {
         assert_eq!(original_file_header, deserialised_json);
     }
     #[tokio::test]
-    async fn test_protocol_read_and_write() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_protocol_read_and_write() -> Result<()> {
         let stream = TcpStream::connect("127.0.0.1:8080").await?;
         let connection = ProtocolConnection::new(stream).await?;
 
