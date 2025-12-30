@@ -86,7 +86,7 @@ mod tests {
             name: String::from(file_name),
             size: 4001,
             hash: String::from("abc123def"),
-    };
+        };
         // serialise to JSON (Struct -> String)
         let json_string_wrapped = serde_json::to_string(&original_file_header);
         let json_string = json_string_wrapped.unwrap();
@@ -97,7 +97,7 @@ mod tests {
         assert_eq!(json_string, header);
 
         Ok(())
-
+    }
     // Test VeriFlow error type struct
     #[test]
     fn test_error_conversion() {
