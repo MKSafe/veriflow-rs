@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
-use tokio::net::TcpStream;
 pub mod protocol;
-use protocol::ProtocolConnection;
+pub use protocol::ProtocolConnection;
+use tokio::net::TcpStream;
+
 // cli command arg
 // PartialEQ for unit test
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
