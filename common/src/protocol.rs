@@ -46,15 +46,11 @@ impl ProtocolConnection {
         buffer.extend_from_slice(data_as_bytes);
 
         match self.send_file(&mut buffer).await {
-            Ok(true) => {
-                return Ok(true);
-            }
-            Ok(false) => {
-                return Ok(false);
-            }
+            Ok(true) => Ok(true),
+            Ok(false) => Ok(false),
             Err(e) => {
                 error!("Following error occured {}", e);
-                return Err(e);
+                Err(e)
             }
         }
     }
