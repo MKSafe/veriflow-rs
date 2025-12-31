@@ -45,7 +45,7 @@ impl Listener {
     /// ```
     /// async fn some_func() -> std::io::Result<()>{
     ///     use server::server::Listener;
-    ///     let listener = Listener::new("x.x.x.x","xxxx").await?;
+    ///     let mut listener = Listener::new("x.x.x.x","xxxx").await?;
     ///     listener.listen().await?;
     ///     Ok(())
     /// }
