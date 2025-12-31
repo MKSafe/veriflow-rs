@@ -18,10 +18,13 @@ impl ProtocolConnection {
     /// # Examples
     ///
     /// ```
-    /// use protocol::ProtocolConnection;
-    /// use tokio::net::TcpStream;
-    /// let stream = TcpStream::connect("x.x.x.x","xxxx").await?;
-    /// let connection = ProtocolConnection::new(stream).await?;
+    /// async fn some_func() -> std::io::Result<()> {
+    ///     use common::protocol::ProtocolConnection;
+    ///     use tokio::net::TcpStream;
+    ///     let stream = TcpStream::connect("127.0.0.1").await?;
+    ///     let connection = ProtocolConnection::new(stream).await?;
+    ///     Ok(())
+    /// }
     /// ```
     pub async fn new(stream: TcpStream) -> io::Result<ProtocolConnection> {
         //returns a new connection object

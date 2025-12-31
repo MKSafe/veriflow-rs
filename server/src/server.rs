@@ -18,8 +18,11 @@ impl Listener {
     ///
     /// #Examples
     /// ```
-    /// use server::Listener;
-    /// let listener = Listener::new("x.x.x.x","xxxx").await?;
+    /// async fn some_func() -> std::io::Result<()>{
+    ///     use server::Listener;
+    ///     let listener = Listener::new("127.0.0.1","0").await?;
+    ///     Ok(())
+    /// }
     /// ```
     pub async fn new(host: &str, port: &str) -> io::Result<Listener> {
         //When the host or the port is not pressent run the server on the local host
@@ -36,16 +39,16 @@ impl Listener {
         //returns a new listener struct
         Ok(Listener { listener })
     }
-    /*pub async fn start_listener(&mut self,host: &str, port: &str){
-
-    }*/
     ///This starts the server loop which accepts a connection and handles the client
     ///
     /// #Examples
     /// ```
-    /// use server::Listener;
-    /// let listener = Listener::new("x.x.x.x","xxxx");
-    /// listener.listen().await?;
+    /// async fn some_func() -> std::io::Result<()>{
+    ///     use server::Listener;
+    ///     let listener = Listener::new("x.x.x.x","xxxx");
+    ///     listener.listen().await?;
+    ///     Ok(())
+    /// }
     /// ```
     pub async fn listen(&mut self) -> io::Result<()> {
         //infitnite loop this will act as the servers main loop
