@@ -1,5 +1,5 @@
 use std::io;
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 pub struct Listener {
     //Struct definition
@@ -44,6 +44,15 @@ impl Listener {
                 ),
             }
         }
+    }
+    pub async fn accept_once(&mut self) -> io::Result<TcpStream> {
+        //test only method that accepts a single tcp stream
+        let (stream, _) = self.listener.accept().await?;
+        Ok(stream)
+    }
+    pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
+        //returns the address the server is bound to
+        self.listener.local_addr()
     }
     /*
         async fn read_stream(stream: TcpStream,) -> io::Result<String>{
