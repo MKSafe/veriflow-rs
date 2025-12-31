@@ -19,7 +19,7 @@ impl Listener {
     /// #Examples
     /// ```
     /// async fn some_func() -> std::io::Result<()>{
-    ///     use server::Listener;
+    ///     use server::server::Listener;
     ///     let listener = Listener::new("127.0.0.1","0").await?;
     ///     Ok(())
     /// }
@@ -44,7 +44,7 @@ impl Listener {
     /// #Examples
     /// ```
     /// async fn some_func() -> std::io::Result<()>{
-    ///     use server::Listener;
+    ///     use server::server::Listener;
     ///     let listener = Listener::new("x.x.x.x","xxxx");
     ///     listener.listen().await?;
     ///     Ok(())
