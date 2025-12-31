@@ -2,16 +2,38 @@ use std::io;
 use tokio::io::Interest;
 use tokio::net::TcpStream;
 use tracing::{error, info};
+///Represents the custom Protocol read and send methods built on top of Tcp
 pub struct ProtocolConnection {
     stream: TcpStream,
 }
 
 impl ProtocolConnection {
+    /// Creates a new protocol connection
+    ///
+    /// # Arguments
+    /// * 'stream' - takes in a 'TcpStream' to base our protocol connection on
+    ///
+    /// # Returns
+    /// A new custom protocol connection
+    /// # Examples
+    ///
+    /// ```
+    /// use protocol::ProtocolConnection;
+    /// use tokio::net::TcpStream;
+    /// let stream = TcpStream::connect("x.x.x.x","xxxx").await?;
+    /// let connection = ProtocolConnection::new(stream).await?;
+    /// ```
     pub async fn new(stream: TcpStream) -> io::Result<ProtocolConnection> {
         //returns a new connection object
         Ok(ProtocolConnection { stream })
     }
-
+    /// Sends the custom json header
+    ///
+    /// # Arguments
+    /// * 'header' - A '&str' that contains the serialized josn
+    ///
+    /// # Returns
+    /// A 'bool' value to represent if the send function succeeded
     pub async fn send_header(&self, header: &str) -> io::Result<bool> {
         //turns data into bytes and gets the length
         let data_as_bytes = header.as_bytes();
@@ -23,56 +45,38 @@ impl ProtocolConnection {
         //adds the data to the byte buffer
         buffer.extend_from_slice(data_as_bytes);
 
-        loop {
-            //checks the streams state for writability
-            match self.stream.ready(Interest::WRITABLE).await {
-                Ok(state) => {
-                    if state.is_writable() {
-                        //if the state is writeable send the packet
-                        match self.stream.try_write(&buffer) {
-                            Ok(n) => {
-                                //check if the whole packet has been sent
-                                if n == buffer.len() {
-                                    return Ok(true);
-                                } else {
-                                    buffer.drain(..n);
-                                }
-                            }
-                            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                                continue;
-                            }
-                            Err(e) => {
-                                error!("the following error occured {}", e);
-                                return Ok(false);
-                            }
-                        }
-                    } else if state.is_write_closed() {
-                        info!("The socket you are trying to write to is not accessible");
-                        return Ok(false);
-                    }
-                }
-                Err(e) => {
-                    //if there is an error with retriving the socket state print the error to console
-                    error!("The following error has occured: {}", e);
-                    return Ok(false);
-                }
-            };
+        match self.send_file(&mut buffer).await {
+            Ok(true) => {
+                return Ok(true);
+            }
+            Ok(false) => {
+                return Ok(false);
+            }
+            Err(e) => {
+                error!("Following error occured {}", e);
+                return Err(e);
+            }
         }
     }
-
-    pub async fn send_file(&self, file: &mut Vec<u8>) -> io::Result<bool> {
+    /// Sending function designed to send data based on a buffer
+    /// # Arguments
+    /// * 'buffer' - a '&mut Vec<u8>' which contains the data to be sent in byte format
+    ///  
+    /// # Returns
+    /// A 'Result' containing 'bool' which represents the success of the send functions
+    pub async fn send_file(&self, buffer: &mut Vec<u8>) -> io::Result<bool> {
         loop {
             //checks if the connected stream is active for a write action
             match self.stream.ready(Interest::WRITABLE).await {
                 Ok(state) => {
                     if state.is_writable() {
                         //when writable the data will be sent
-                        match self.stream.try_write(file) {
+                        match self.stream.try_write(buffer) {
                             Ok(n) => {
-                                if n == file.len() {
+                                if n == buffer.len() {
                                     return Ok(true);
                                 } else {
-                                    file.drain(..n);
+                                    buffer.drain(..n);
                                 }
                             }
                             //if a blocking error occurs try again
@@ -100,6 +104,10 @@ impl ProtocolConnection {
         }
     }
 
+    ///Reads the prefixed length of the header
+    ///
+    /// #Returns
+    /// A 'Result' of usize representing the size of the incoming header
     pub async fn read_prefix(&self) -> io::Result<usize> {
         //creates the prefix buffer
         let mut buf: [u8; 4] = [0u8; 4];
@@ -142,7 +150,12 @@ impl ProtocolConnection {
         }
         Ok(u32::from_be_bytes(buf) as usize)
     }
-
+    ///Reads a number of bytes specified
+    /// # Arguments
+    /// * 'buffer_len' - Represents the number of bytes to read
+    ///
+    /// # Returns
+    /// A 'Result' of 'Vec<u8>' which is the data received through the connection stream
     pub async fn read_body(&self, buffer_len: usize) -> io::Result<Vec<u8>> {
         //creates a buffer for a custom size
         let mut buf = vec![0u8; buffer_len];
