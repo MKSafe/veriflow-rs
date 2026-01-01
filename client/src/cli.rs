@@ -12,7 +12,8 @@ use std::path::PathBuf;
 ))]
 pub struct Args {
     ///  IP of the server (host is added automatically)
-    #[arg(short, long)]
+    // - defaults to localhost
+    #[arg(short, long, default_value = "127.0.0.1:8080")]
     pub ip: String,
 
     /// Upload file to server

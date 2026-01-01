@@ -34,14 +34,14 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
         // Read chunk from file (number of bytes successfully read)
         let bytes_read: usize = file.read(&mut buffer).await?;
 
-        // update progress bar
-        progress_bar.inc(bytes_read as u64);
-
         // finish reading file
         if bytes_read == 0 {
             // break loop
             break;
         }
+
+        // update progress bar
+        progress_bar.inc(bytes_read as u64);
 
         // load the chunk from file
         let current_chunk: &[u8] = &buffer[..bytes_read];

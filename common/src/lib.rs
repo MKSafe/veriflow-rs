@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 pub mod protocol;
 pub use protocol::ProtocolConnection;
-use tokio::net::TcpStream;
+use thiserror::Error;
 
 // cli command arg
 // PartialEQ for unit test
@@ -20,11 +20,32 @@ pub struct FileHeader {
     pub hash: String, // hex string
 }
 
+// Error Type Struct for wrapping errors
+#[derive(Error, Debug)]
+pub enum VeriflowError {
+    // IO Error
+    #[error("Network/Disk Error: {0}")]
+    Io(#[from] std::io::Error),
+
+    // JSON Error
+    #[error("Serialisation Error: {0}")]
+    JSON(#[from] serde_json::Error),
+
+    // File Path Error
+    #[error("Invalid Path: Could not extract a valid filename from the provided path")]
+    InvalidPath,
+}
+
+// Allow writing Result<String> instead of Result<String, VeriflowError>
+pub type Result<T> = std::result::Result<T, VeriflowError>;
+
 // Tests
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    pub use server::server::Listener;
+    use tokio::net::TcpStream;
+    // Test Serialisation and Deserialisation
     #[test]
     fn test_file_header_serialisation() {
         // set file name
@@ -52,8 +73,24 @@ mod tests {
         assert_eq!(original_file_header, deserialised_json);
     }
     #[tokio::test]
-    async fn test_protocol_read_and_write() -> Result<(), Box<dyn std::error::Error>> {
-        let stream = TcpStream::connect("127.0.0.1:8080").await?;
+    async fn test_protocol_read_and_write(
+    ) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        //made to avoid veriflow error
+        type AnyResult<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+        //creates a server
+        let mut server = Listener::new("127.0.0.1", "0").await?;
+        let addr = server.local_addr()?;
+        let server_task: tokio::task::JoinHandle<AnyResult<()>> = tokio::spawn(async move {
+            let stream = server.accept_once().await?;
+            let conn = ProtocolConnection::new(stream).await?;
+
+            let len = conn.read_prefix().await?;
+            let body = conn.read_body(len).await?;
+            conn.send_header(&String::from_utf8_lossy(&body)).await?;
+
+            Ok(())
+        });
+        let stream = TcpStream::connect(addr).await?;
         let connection = ProtocolConnection::new(stream).await?;
 
         // set file name
@@ -69,12 +106,35 @@ mod tests {
         // serialise to JSON (Struct -> String)
         let json_string_wrapped = serde_json::to_string(&original_file_header);
         let json_string = json_string_wrapped.unwrap();
-        let result = connection.send_header(&json_string).await;
+        let _result = connection.send_header(&json_string).await?;
         let header_length = connection.read_prefix().await?;
         let byte_header = connection.read_body(header_length).await?;
         let header = String::from_utf8_lossy(&byte_header);
         assert_eq!(json_string, header);
-
+        match server_task.await {
+            Ok(res) => res?,
+            Err(e) => panic!("server task panicked: {e}"),
+        }
         Ok(())
+    }
+    // Test VeriFlow error type struct
+    #[test]
+    fn test_error_conversion() {
+        // parse non-json into FileHeader
+        fn json_fail() -> super::Result<FileHeader> {
+            let garbage = "not json";
+            // 'from_str' tries to convert string to JSON,
+            // the '?' operator handles the failure by automatically converting the JSON error to custom wrapper error
+            let header: FileHeader = serde_json::from_str(garbage)?;
+            Ok(header)
+        }
+
+        let result = json_fail();
+
+        // test if resturned type is an Error
+        assert!(result.is_err());
+
+        // Verify the error type
+        println!("{}", result.unwrap_err());
     }
 }
