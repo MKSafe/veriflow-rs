@@ -73,7 +73,7 @@ impl ProtocolConnection {
     ///  
     /// # Returns
     /// A 'Result' containing 'bool' which represents the success of the send functions
-    pub async fn send_file(&mut self, buffer: &mut Vec<u8>) -> io::Result<bool> {
+    pub async fn send_file(&mut self, buffer: &mut [u8]) -> io::Result<bool> {
         match self.stream.write_all(buffer).await {
             Ok(()) => Ok(true),
             Err(e) => {
@@ -94,10 +94,10 @@ impl ProtocolConnection {
             Ok(n) => {
                 if n != buf.len() {
                     error!("Failed to read the whole prefix");
-                    return Err(io::Error::new(
+                    Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         "invalid length read",
-                    ));
+                    ))
                 } else {
                     let value = u32::from_be_bytes(buf) as usize;
                     Ok(value)
@@ -121,10 +121,10 @@ impl ProtocolConnection {
         match self.stream.read_exact(&mut buf).await {
             Ok(n) => {
                 if n != buffer_len {
-                    return Err(io::Error::new(
+                    Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         "invalid length read",
-                    ));
+                    ))
                 } else {
                     Ok(buf)
                 }
