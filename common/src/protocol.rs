@@ -1,7 +1,7 @@
 use std::io;
-use tokio::io::{AsyncWriteExt,AsyncReadExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tracing::{error};
+use tracing::error;
 ///Represents the custom Protocol read and send methods built on top of Tcp
 pub struct ProtocolConnection {
     stream: TcpStream,
@@ -48,23 +48,21 @@ impl ProtocolConnection {
         len_buff.extend_from_slice(&data_byte_len.to_be_bytes());
         //adds the data to the byte buffer
         buffer.extend_from_slice(data_as_bytes);
-        match self.send_file(&mut len_buff).await{
-            Ok(true) => {
-                match self.send_file(&mut buffer).await {
-                    Ok(true) => Ok(true),
-                    Ok(false) => Ok(false),
-                    Err(e) => {
-                        error!("Following error occured: {}", e);
-                        Ok(false)
-                    }
+        match self.send_file(&mut len_buff).await {
+            Ok(true) => match self.send_file(&mut buffer).await {
+                Ok(true) => Ok(true),
+                Ok(false) => Ok(false),
+                Err(e) => {
+                    error!("Following error occured: {}", e);
+                    Ok(false)
                 }
-            }
+            },
             Ok(false) => {
                 error!("Failed sending the header prefix length");
                 Ok(false)
             }
             Err(e) => {
-                error!("Following error occured: {}",e);
+                error!("Following error occured: {}", e);
                 Ok(false)
             }
         }
@@ -76,15 +74,13 @@ impl ProtocolConnection {
     /// # Returns
     /// A 'Result' containing 'bool' which represents the success of the send functions
     pub async fn send_file(&mut self, buffer: &mut Vec<u8>) -> io::Result<bool> {
-       match self.stream.write_all(buffer).await{
-        Ok(()) => {
-            Ok(true)
+        match self.stream.write_all(buffer).await {
+            Ok(()) => Ok(true),
+            Err(e) => {
+                error!("The following error has occured {}", e);
+                Ok(false)
+            }
         }
-        Err(e) => {
-            error!("The following error has occured {}",e);
-            Ok(false)
-        }
-       }
     }
 
     ///Reads the prefixed length of the header
@@ -96,20 +92,19 @@ impl ProtocolConnection {
         let mut buf: [u8; 4] = [0u8; 4];
         match self.stream.read_exact(&mut buf).await {
             Ok(n) => {
-                if n != buf.len(){
+                if n != buf.len() {
                     error!("Failed to read the whole prefix");
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "invalid length read"
+                        "invalid length read",
                     ));
-                }
-                else{
+                } else {
                     let value = u32::from_be_bytes(buf) as usize;
                     Ok(value)
                 }
             }
             Err(e) => {
-                error!("Following error occured: {}",e);
+                error!("Following error occured: {}", e);
                 Err(e)
             }
         }
@@ -123,23 +118,21 @@ impl ProtocolConnection {
     pub async fn read_body(&mut self, buffer_len: usize) -> io::Result<Vec<u8>> {
         //creates a buffer for a custom size
         let mut buf = vec![0u8; buffer_len];
-        match self.stream.read_exact(&mut buf).await{
+        match self.stream.read_exact(&mut buf).await {
             Ok(n) => {
-                if n != buffer_len{
+                if n != buffer_len {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "invalid length read"
+                        "invalid length read",
                     ));
-                }
-                else{
+                } else {
                     Ok(buf)
                 }
             }
             Err(e) => {
-                error!("Following error occured: {}",e);
+                error!("Following error occured: {}", e);
                 Err(e)
             }
         }
-        
     }
 }

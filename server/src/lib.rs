@@ -1,11 +1,11 @@
 pub mod server;
 
 #[cfg(test)]
-mod test{
+mod test {
+    use crate::server::Listener;
     pub use common::protocol::ProtocolConnection;
     pub use common::{Command, FileHeader};
     use tokio::net::TcpStream;
-    use crate::server::Listener;
     #[tokio::test]
     async fn test_protocol_read_and_write(
     ) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
