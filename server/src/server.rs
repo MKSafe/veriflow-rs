@@ -1,6 +1,9 @@
 use std::io;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
+use common::protocol::ProtocolConnection;
+use common::FileHeader;
+use common::Command;
 ///This struct represents the listener that will handle connections
 pub struct Listener {
     //Struct definition
@@ -21,7 +24,7 @@ impl Listener {
     /// async fn some_func() -> std::io::Result<()>{
     ///     use server::server::Listener;
     ///     let listener = Listener::new("127.0.0.1","0").await?;
-    ///     Ok(())
+    ///     Ok(())c
     /// }
     /// ```
     pub async fn new(host: &str, port: &str) -> io::Result<Listener> {
@@ -55,10 +58,9 @@ impl Listener {
         loop {
             //The listener.accept() function can possibly throw an error so we handle it using the match keyword
             match self.listener.accept().await {
-                //when a connec tion is made we deal with it below
-
                 //when a connection is made we deal with it below
                 Ok((mut _stream, addr)) => {
+                    
                     info!("User {} has connected.", addr,);
                 }
 
@@ -68,6 +70,9 @@ impl Listener {
                 ),
             }
         }
+    }
+    pub async fn handle_client(&mut self, connection : &mut ProtocolConnection){
+
     }
     ///Accept a single tcp connection
     /// # Returns
