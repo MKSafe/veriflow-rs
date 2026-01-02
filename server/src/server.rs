@@ -1,17 +1,33 @@
 use std::io;
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
+///This struct represents the listener that will handle connections
 pub struct Listener {
     //Struct definition
     listener: TcpListener,
 }
 
 impl Listener {
-    //implementation of operations for the Listener struct
+    ///Used to initialise a new server listener
+    /// # Arguments
+    /// * 'host' - A '&str' which represents the ip address of the server
+    /// * 'port' - A '&str' which represents the port our server is going to listen on
+    ///
+    /// # Returns
+    /// A 'Result' containing the 'Listener' struct object which will listen for client connections
+    ///
+    /// #Examples
+    /// ```
+    /// async fn some_func() -> std::io::Result<()>{
+    ///     use server::server::Listener;
+    ///     let listener = Listener::new("127.0.0.1","0").await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn new(host: &str, port: &str) -> io::Result<Listener> {
         //When the host or the port is not pressent run the server on the local host
         if host.is_empty() || port.is_empty() {
-            let listener = TcpListener::bind("127.0.0.1:8080").await?;
+            let listener = TcpListener::bind("127.0.0.1:0").await?;
             info!("Listener is running");
             //returns a new listener struct object
             return Ok(Listener { listener });
@@ -23,21 +39,27 @@ impl Listener {
         //returns a new listener struct
         Ok(Listener { listener })
     }
-    /*pub async fn start_listener(&mut self,host: &str, port: &str){
-
-    }*/
+    ///This starts the server loop which accepts a connection and handles the client
+    ///
+    /// #Examples
+    /// ```
+    /// async fn some_func() -> std::io::Result<()>{
+    ///     use server::server::Listener;
+    ///     let mut listener = Listener::new("x.x.x.x","xxxx").await?;
+    ///     listener.listen().await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn listen(&mut self) -> io::Result<()> {
         //infitnite loop this will act as the servers main loop
         loop {
             //The listener.accept() function can possibly throw an error so we handle it using the match keyword
             match self.listener.accept().await {
+                //when a connec tion is made we deal with it below
+
                 //when a connection is made we deal with it below
                 Ok((mut _stream, addr)) => {
                     info!("User {} has connected.", addr,);
-
-                    tokio::spawn(async move {
-                        //let _ = Listener::handle_client(_stream, addr).await;
-                    });
                 }
 
                 Err(e) => error!(
@@ -47,32 +69,17 @@ impl Listener {
             }
         }
     }
-    /*
-        async fn read_stream(stream: TcpStream,) -> io::Result<String>{
-            let mut buffer = vec![0u8;4096];
-            let mut msg = String::new();
-            loop{
-                stream.readable().await?;
-                match stream.try_read(&mut buffer){
-                    Ok(0)=>{info!("Client finished sending");break;}
-                    Ok(n)=>{
-                        msg.push_str(&String::from_utf8_lossy(&buffer[..n]));
-                    }
-                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                        continue;
-                    }
-                    Err(e) => {
-                        return Err(e.into());
-                    }
-                }
-            }
-            Ok(msg)
-        }
-    async fn write_to_stream(&mut stream)-> io::Result<u8>{
-        }
-
-    async fn handle_client(stream: TcpStream, addr: SocketAddr) -> io::Result<bool> {
-        Ok(true)
+    ///Accept a single tcp connection
+    /// # Returns
+    ///
+    /// A 'TcpStream' representing the connection
+    pub async fn accept_once(&mut self) -> io::Result<TcpStream> {
+        //test only method that accepts a single tcp stream
+        let (stream, _) = self.listener.accept().await?;
+        Ok(stream)
     }
-    */
+    ///Returns the current address bound to the listener
+    pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
+        self.listener.local_addr()
+    }
 }

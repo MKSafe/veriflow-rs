@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+pub mod protocol;
 use thiserror::Error;
 
 // cli command arg
@@ -41,7 +42,6 @@ pub type Result<T> = std::result::Result<T, VeriflowError>;
 #[cfg(test)]
 mod tests {
     use super::*;
-
     // Test Serialisation and Deserialisation
     #[test]
     fn test_file_header_serialisation() {
@@ -69,7 +69,6 @@ mod tests {
 
         assert_eq!(original_file_header, deserialised_json);
     }
-
     // Test VeriFlow error type struct
     #[test]
     fn test_error_conversion() {

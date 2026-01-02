@@ -1,0 +1,93 @@
+use std::io;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+
+///Represents the custom Protocol read and send methods built on top of Tcp
+pub struct ProtocolConnection {
+    stream: TcpStream,
+}
+
+impl ProtocolConnection {
+    /// Creates a new protocol connection
+    ///
+    /// # Arguments
+    /// * 'stream' - takes in a 'TcpStream' to base our protocol connection on
+    ///
+    /// # Returns
+    /// A new custom protocol connection
+    /// # Examples
+    ///
+    /// ```
+    /// async fn some_func() -> std::io::Result<()> {
+    ///     use common::protocol::ProtocolConnection;
+    ///     use tokio::net::TcpStream;
+    ///     let stream = TcpStream::connect("127.0.0.1").await?;
+    ///     let connection = ProtocolConnection::new(stream).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn new(stream: TcpStream) -> io::Result<ProtocolConnection> {
+        //returns a new connection object
+        Ok(ProtocolConnection { stream })
+    }
+
+    /// Sends the custom json header
+    ///
+    /// # Arguments
+    /// * 'header' - A '&str' that contains the serialized josn
+    ///
+    /// # Returns
+    /// A 'bool' value to represent if the send function succeeded
+    pub async fn send_header(&mut self, header: &str) -> io::Result<()> {
+        //turns data into bytes and gets the length
+        let data_as_bytes = header.as_bytes();
+        let data_byte_len = data_as_bytes.len() as u32;
+
+        // send length prefix
+        // convert u32 to big-endian bytes
+        self.send_data(&data_byte_len.to_be_bytes()).await?;
+
+        // Send as json body
+        self.send_data(data_as_bytes).await?;
+
+        // Flush to ensure the bytes actually leave the network buffer
+        self.stream.flush().await?;
+
+        Ok(())
+    }
+    /// Sending function designed to send data based on a buffer
+    /// # Arguments
+    /// * 'buffer' - a '&mut Vec<u8>' which contains the data to be sent in byte format
+    ///  
+    /// # Returns
+    /// A 'Result' containing 'bool' which represents the success of the send functions
+    pub async fn send_data(&mut self, buffer: &[u8]) -> io::Result<()> {
+        self.stream.write_all(buffer).await
+    }
+
+    ///Reads the prefixed length of the header
+    ///
+    /// #Returns
+    /// A 'Result' of usize representing the size of the incoming header
+    pub async fn read_prefix(&mut self) -> io::Result<usize> {
+        //creates the prefix buffer
+        let mut buf: [u8; 4] = [0u8; 4];
+        self.stream.read_exact(&mut buf).await?;
+
+        Ok(u32::from_be_bytes(buf) as usize)
+    }
+
+    ///Reads a number of bytes specified
+    /// # Arguments
+    /// * 'buffer_len' - Represents the number of bytes to read
+    ///
+    /// # Returns
+    /// A 'Result' of 'Vec<u8>' which is the data received through the connection stream
+    pub async fn read_body(&mut self, buffer_len: usize) -> io::Result<Vec<u8>> {
+        //creates a buffer for a custom size
+        let mut buf = vec![0u8; buffer_len];
+        self.stream.read_exact(&mut buf).await?;
+
+        Ok(buf)
+    }
+}

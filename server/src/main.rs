@@ -1,5 +1,4 @@
-mod server;
-use server::Listener;
+use server::server::Listener;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
