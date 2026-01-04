@@ -1,10 +1,10 @@
 //! File Upload Logic
 
 use crate::{hashing, ui};
-use common::{Command, FileHeader, VeriflowError};
+use common::{protocol::ProtocolConnection, Command, FileHeader, VeriflowError};
 use std::path::Path;
 use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 
 // convention: 4096B or 8192B
@@ -37,7 +37,10 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
     println!("Connecting to {ip}...");
 
     // connect via TCP stream
-    let mut stream = TcpStream::connect(ip).await?;
+    let stream = TcpStream::connect(ip).await?;
+
+    // move ownership of stream into ProtocolConnection
+    let mut connection = ProtocolConnection::new(stream).await?;
 
     // Setup FileHeader
     let file_header: FileHeader = FileHeader {
@@ -51,21 +54,8 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
     // JSON string
     let header_json = serde_json::to_string(&file_header)?;
 
-    // Convert to raw bytes
-    let json_bytes = header_json.as_bytes();
-
-    //  Get prefix length as u32
-    let json_len = json_bytes.len() as u32;
-    // Use big endian due to network standard (old server cpus)
-    let prefix_bytes = json_len.to_be_bytes();
-
-    // Send the prefix
-    stream.write_all(&prefix_bytes).await?;
-
-    // println!("length {json_len}, prefix bytes: {:?}", &prefix_bytes);
-
-    // Send the actual file header
-    stream.write_all(json_bytes).await?;
+    // send header via helper
+    connection.send_header(&header_json).await?;
 
     // File Upload
     println!("Starting Upload...");
@@ -97,7 +87,7 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
         let current_chunk: &[u8] = &buffer[..bytes_read];
 
         // update stream with current chunk reference
-        stream.write_all(current_chunk).await?;
+        connection.send_data(current_chunk).await?;
     }
 
     // finish progress bar
