@@ -1,7 +1,7 @@
 use std::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tracing::error;
+
 ///Represents the custom Protocol read and send methods built on top of Tcp
 pub struct ProtocolConnection {
     stream: TcpStream,
@@ -30,6 +30,7 @@ impl ProtocolConnection {
         //returns a new connection object
         Ok(ProtocolConnection { stream })
     }
+
     /// Sends the custom json header
     ///
     /// # Arguments
@@ -37,35 +38,22 @@ impl ProtocolConnection {
     ///
     /// # Returns
     /// A 'bool' value to represent if the send function succeeded
-    pub async fn send_header(&mut self, header: &str) -> io::Result<bool> {
+    pub async fn send_header(&mut self, header: &str) -> io::Result<()> {
         //turns data into bytes and gets the length
         let data_as_bytes = header.as_bytes();
         let data_byte_len = data_as_bytes.len() as u32;
-        //initialises a buffer with the size of the data length prefix and data length
-        let mut buffer = Vec::with_capacity(data_as_bytes.len());
-        //adds the len prefix to the buffer
-        let mut len_buff = Vec::with_capacity(data_byte_len.to_be_bytes().len());
-        len_buff.extend_from_slice(&data_byte_len.to_be_bytes());
-        //adds the data to the byte buffer
-        buffer.extend_from_slice(data_as_bytes);
-        match self.send_file(&mut len_buff).await {
-            Ok(true) => match self.send_file(&mut buffer).await {
-                Ok(true) => Ok(true),
-                Ok(false) => Ok(false),
-                Err(e) => {
-                    error!("Following error occured: {}", e);
-                    Ok(false)
-                }
-            },
-            Ok(false) => {
-                error!("Failed sending the header prefix length");
-                Ok(false)
-            }
-            Err(e) => {
-                error!("Following error occured: {}", e);
-                Ok(false)
-            }
-        }
+
+        // send length prefix
+        // convert u32 to big-endian bytes
+        self.send_data(&data_byte_len.to_be_bytes()).await?;
+
+        // Send as json body
+        self.send_data(data_as_bytes).await?;
+
+        // Flush to ensure the bytes actually leave the network buffer
+        self.stream.flush().await?;
+
+        Ok(())
     }
     /// Sending function designed to send data based on a buffer
     /// # Arguments
@@ -73,14 +61,8 @@ impl ProtocolConnection {
     ///  
     /// # Returns
     /// A 'Result' containing 'bool' which represents the success of the send functions
-    pub async fn send_file(&mut self, buffer: &mut [u8]) -> io::Result<bool> {
-        match self.stream.write_all(buffer).await {
-            Ok(()) => Ok(true),
-            Err(e) => {
-                error!("The following error has occured {}", e);
-                Ok(false)
-            }
-        }
+    pub async fn send_data(&mut self, buffer: &[u8]) -> io::Result<()> {
+        self.stream.write_all(buffer).await
     }
 
     ///Reads the prefixed length of the header
@@ -90,25 +72,11 @@ impl ProtocolConnection {
     pub async fn read_prefix(&mut self) -> io::Result<usize> {
         //creates the prefix buffer
         let mut buf: [u8; 4] = [0u8; 4];
-        match self.stream.read_exact(&mut buf).await {
-            Ok(n) => {
-                if n != buf.len() {
-                    error!("Failed to read the whole prefix");
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid length read",
-                    ))
-                } else {
-                    let value = u32::from_be_bytes(buf) as usize;
-                    Ok(value)
-                }
-            }
-            Err(e) => {
-                error!("Following error occured: {}", e);
-                Err(e)
-            }
-        }
+        self.stream.read_exact(&mut buf).await?;
+
+        Ok(u32::from_be_bytes(buf) as usize)
     }
+
     ///Reads a number of bytes specified
     /// # Arguments
     /// * 'buffer_len' - Represents the number of bytes to read
@@ -118,21 +86,8 @@ impl ProtocolConnection {
     pub async fn read_body(&mut self, buffer_len: usize) -> io::Result<Vec<u8>> {
         //creates a buffer for a custom size
         let mut buf = vec![0u8; buffer_len];
-        match self.stream.read_exact(&mut buf).await {
-            Ok(n) => {
-                if n != buffer_len {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "invalid length read",
-                    ))
-                } else {
-                    Ok(buf)
-                }
-            }
-            Err(e) => {
-                error!("Following error occured: {}", e);
-                Err(e)
-            }
-        }
+        self.stream.read_exact(&mut buf).await?;
+
+        Ok(buf)
     }
 }
