@@ -1,9 +1,12 @@
+use std::fs::File;
 use std::io;
+use common::VeriflowError;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 use common::protocol::ProtocolConnection;
 use common::FileHeader;
 use common::Command;
+use serde;
 ///This struct represents the listener that will handle connections
 pub struct Listener {
     //Struct definition
@@ -60,8 +63,12 @@ impl Listener {
             match self.listener.accept().await {
                 //when a connection is made we deal with it below
                 Ok((mut _stream, addr)) => {
-                    
                     info!("User {} has connected.", addr,);
+                    let mut connection = ProtocolConnection::new(_stream).await?;
+                    let client_task: tokio::task::JoinHandle<Result<(),Box<VeriflowError>>>  = tokio::spawn(async move{
+                        self.handle_client(&mut connection).await?;
+                        Ok(())
+                    });
                 }
 
                 Err(e) => error!(
@@ -71,8 +78,32 @@ impl Listener {
             }
         }
     }
-    pub async fn handle_client(&mut self, connection : &mut ProtocolConnection){
+    pub async fn handle_client(&mut self, connection : &mut ProtocolConnection) -> io::Result<()>{
+        let prefix_len = connection.read_prefix().await?;
+        let header = connection.read_body(prefix_len).await?;
+        let string_header = String::from_utf8_lossy(&header);
+        let file_header : FileHeader = serde_json::from_str(&string_header).unwrap();
+        self.handle_operation(&file_header).await?;
+        Ok(())
+    }
 
+    async fn handle_operation(&mut self, header : &FileHeader) -> io::Result<()>{
+        let operation = header.command;
+        match operation {
+            Command::Upload => {
+
+            }
+            Command::Download => {
+
+            }
+            Command::List => {
+
+            }
+            _ => {
+                Err()
+            }
+        }
+        Ok(())
     }
     ///Accept a single tcp connection
     /// # Returns
