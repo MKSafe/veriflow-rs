@@ -6,7 +6,10 @@ use tracing::{error, info};
 use common::protocol::ProtocolConnection;
 use common::FileHeader;
 use common::Command;
+<<<<<<< HEAD
 use serde;
+=======
+>>>>>>> 1e5ecc399f1d1a4ab78e932246126be50af091d6
 ///This struct represents the listener that will handle connections
 pub struct Listener {
     //Struct definition
@@ -63,6 +66,7 @@ impl Listener {
             match self.listener.accept().await {
                 //when a connection is made we deal with it below
                 Ok((mut _stream, addr)) => {
+                    
                     info!("User {} has connected.", addr,);
                     let mut connection = ProtocolConnection::new(_stream).await?;
                     let client_task: tokio::task::JoinHandle<Result<(),Box<VeriflowError>>>  = tokio::spawn(async move{
@@ -78,6 +82,7 @@ impl Listener {
             }
         }
     }
+<<<<<<< HEAD
     pub async fn handle_client(&mut self, connection : &mut ProtocolConnection) -> io::Result<()>{
         let prefix_len = connection.read_prefix().await?;
         let header = connection.read_body(prefix_len).await?;
@@ -104,6 +109,10 @@ impl Listener {
             }
         }
         Ok(())
+=======
+    pub async fn handle_client(&mut self, connection : &mut ProtocolConnection){
+
+>>>>>>> 1e5ecc399f1d1a4ab78e932246126be50af091d6
     }
     ///Accept a single tcp connection
     /// # Returns
