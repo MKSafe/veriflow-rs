@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::io;
 use common::VeriflowError;
 use tokio::net::{TcpListener, TcpStream};
@@ -6,10 +5,6 @@ use tracing::{error, info};
 use common::protocol::ProtocolConnection;
 use common::FileHeader;
 use common::Command;
-<<<<<<< HEAD
-use serde;
-=======
->>>>>>> 1e5ecc399f1d1a4ab78e932246126be50af091d6
 ///This struct represents the listener that will handle connections
 pub struct Listener {
     //Struct definition
@@ -33,6 +28,7 @@ impl Listener {
     ///     Ok(())c
     /// }
     /// ```
+    const MAX_BUFFER_SIZE : usize = 4096;
     pub async fn new(host: &str, port: &str) -> io::Result<Listener> {
         //When the host or the port is not pressent run the server on the local host
         if host.is_empty() || port.is_empty() {
@@ -68,9 +64,9 @@ impl Listener {
                 Ok((mut _stream, addr)) => {
                     
                     info!("User {} has connected.", addr,);
-                    let mut connection = ProtocolConnection::new(_stream).await?;
-                    let client_task: tokio::task::JoinHandle<Result<(),Box<VeriflowError>>>  = tokio::spawn(async move{
-                        self.handle_client(&mut connection).await?;
+                    let connection = ProtocolConnection::new(_stream).await?;
+                    let client_task: tokio::task::JoinHandle<Result<(),VeriflowError>>  = tokio::spawn(async move{
+                        Self::handle_client(connection).await?;
                         Ok(())
                     });
                 }
@@ -82,37 +78,44 @@ impl Listener {
             }
         }
     }
-<<<<<<< HEAD
-    pub async fn handle_client(&mut self, connection : &mut ProtocolConnection) -> io::Result<()>{
+    async fn handle_client(mut connection : ProtocolConnection) -> io::Result<()>{
         let prefix_len = connection.read_prefix().await?;
-        let header = connection.read_body(prefix_len).await?;
+        let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
         let file_header : FileHeader = serde_json::from_str(&string_header).unwrap();
-        self.handle_operation(&file_header).await?;
+        Self::handle_operation(&file_header).await?;
         Ok(())
     }
 
-    async fn handle_operation(&mut self, header : &FileHeader) -> io::Result<()>{
-        let operation = header.command;
+    async fn handle_operation(header : &FileHeader) -> io::Result<()>{
+        let operation = &header.command;
         match operation {
             Command::Upload => {
-
+                Self::handle_upload(header).await?;
             }
             Command::Download => {
-
+                Self::handle_download(header).await?;
             }
             Command::List => {
-
-            }
-            _ => {
-                Err()
+                Self::handle_list().await?;
             }
         }
         Ok(())
-=======
-    pub async fn handle_client(&mut self, connection : &mut ProtocolConnection){
+    }
 
->>>>>>> 1e5ecc399f1d1a4ab78e932246126be50af091d6
+    async fn handle_upload(header : &FileHeader) -> io::Result<()>{
+        // Milo TODO
+        Ok(())
+    }
+
+    async fn handle_download(header : &FileHeader) -> io::Result<()>{
+        //Milo TODO
+        Ok(())
+    }
+
+    async fn handle_list() -> io::Result<()>{
+        //Milo TODO
+        Ok(())
     }
     ///Accept a single tcp connection
     /// # Returns
