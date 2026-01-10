@@ -1,15 +1,13 @@
 //! File Upload Logic
 
 use crate::{hashing, ui};
-use common::{protocol::ProtocolConnection, Command, FileHeader, VeriflowError};
+use common::{
+    protocol::ProtocolConnection, protocol::BUFFER_SIZE, Command, FileHeader, VeriflowError,
+};
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
-
-// convention: 4096B or 8192B
-// Buffer size of 8kb for TCP
-const BUFFER_SIZE: usize = 4096;
 
 pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
     // Offline Logic (Validation)
