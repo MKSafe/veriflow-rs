@@ -1,6 +1,11 @@
-use std::io;
+use std::{cmp, io};
+use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+
+// convention: 4096B or 8192B
+// Buffer size of 8kb for TCP
+pub const BUFFER_SIZE: usize = 4096;
 
 ///Represents the custom Protocol read and send methods built on top of Tcp
 pub struct ProtocolConnection {
@@ -57,10 +62,10 @@ impl ProtocolConnection {
     }
     /// Sending function designed to send data based on a buffer
     /// # Arguments
-    /// * 'buffer' - a '&mut Vec<u8>' which contains the data to be sent in byte format
+    /// * 'buffer' - a '&[u8]' which contains the data to be sent in byte format
     ///  
     /// # Returns
-    /// A 'Result' containing 'bool' which represents the success of the send functions
+    /// A generic Result indicating success or failure
     pub async fn send_data(&mut self, buffer: &[u8]) -> io::Result<()> {
         self.stream.write_all(buffer).await
     }
@@ -89,5 +94,37 @@ impl ProtocolConnection {
         self.stream.read_exact(&mut buf).await?;
 
         Ok(buf)
+    }
+
+    /// Streams a file to disk from the network
+    pub async fn read_file_to_disk(&mut self, output: &mut File, file_size: u64) -> io::Result<()> {
+        // Buffer
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut total_bytes_read: u64 = 0;
+
+        // read file using buffer
+        loop {
+            // check if finished reading the expected file size
+            if total_bytes_read >= file_size {
+                break;
+            }
+
+            // remaining bytes
+            let remaining_bytes: u64 = file_size - total_bytes_read;
+
+            // determine how much is left to read
+            let bytes_to_read: usize = cmp::min(buffer.len() as u64, remaining_bytes) as usize;
+
+            // read the chunk from buffer
+            self.stream.read_exact(&mut buffer[..bytes_to_read]).await?;
+            output.write_all(&buffer[..bytes_to_read]).await?;
+
+            total_bytes_read += bytes_to_read as u64;
+        }
+
+        // flush to make sure that the data is physically written to disk
+        output.flush().await?;
+
+        Ok(())
     }
 }
