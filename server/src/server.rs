@@ -4,7 +4,6 @@ use common::FileHeader;
 /*use common::VeriflowError;
 use tokio::io::AsyncWriteExt;*/
 use std::io;
-use std::os::windows::fs::MetadataExt;
 use tokio::fs;
 use tokio::fs::File;
 use tokio::net::{TcpListener, TcpStream};
@@ -17,7 +16,7 @@ pub struct Listener {
 
 impl Listener {
     //const MAX_BUFFER_SIZE: usize = 4096;
-    const FILE_PATH: &str = "../Veriflow/resources/";
+    const FILE_PATH: &str = "../../Veriflow/resources/";
     ///Used to initialise a new server listener
     /// # Arguments
     /// * 'host' - A '&str' which represents the ip address of the server
@@ -42,14 +41,15 @@ impl Listener {
         //When the host or the port is not present run the server on the local host
         if host.is_empty() || port.is_empty() {
             let listener = TcpListener::bind("127.0.0.1:0").await?;
-            info!("Listener is running");
+            let port = listener.local_addr().unwrap().port();
+            info!("Listener is running on {}", port);
             //returns a new listener struct object
             return Ok(Listener { listener });
         }
         //If the host and port is specified the server will be ran with the passed address
         let addr = format!("{}:{}", host, port);
-        let listener = TcpListener::bind(addr).await?;
-        info!("Listener is running");
+        let listener = TcpListener::bind(&addr).await?;
+        info!("Listener is running {}", addr);
         //returns a new listener struct
         Ok(Listener { listener })
     }
@@ -102,6 +102,7 @@ impl Listener {
         match operation {
             Command::Upload => {
                 Self::handle_upload(header, connection).await?;
+                info!("A file has been received");
             }
             Command::Download => {
                 Self::handle_download(header, connection).await?;
