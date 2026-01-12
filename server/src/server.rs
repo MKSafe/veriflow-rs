@@ -1,9 +1,12 @@
 use common::protocol::ProtocolConnection;
 use common::Command;
 use common::FileHeader;
-use common::VeriflowError;
+/*use common::VeriflowError;
+use tokio::io::AsyncWriteExt;*/
 use std::io;
+use std::os::windows::fs::MetadataExt;
 use tokio::fs;
+use tokio::fs::File;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 ///This struct represents the listener that will handle connections
@@ -13,8 +16,8 @@ pub struct Listener {
 }
 
 impl Listener {
-    const MAX_BUFFER_SIZE: usize = 4096;
-    const FILE_PATH: &str = "Veriflow/resources";
+    //const MAX_BUFFER_SIZE: usize = 4096;
+    const FILE_PATH: &str = "../Veriflow/resources/";
     ///Used to initialise a new server listener
     /// # Arguments
     /// * 'host' - A '&str' which represents the ip address of the server
@@ -32,8 +35,8 @@ impl Listener {
     /// }
     /// ```
     pub async fn new(host: &str, port: &str) -> io::Result<Listener> {
-        let path_existance = fs::try_exists(Self::FILE_PATH).await?;
-        if !path_existance {
+        let path_exists = fs::try_exists(Self::FILE_PATH).await?;
+        if !path_exists {
             fs::create_dir_all(Self::FILE_PATH).await?;
         }
         //When the host or the port is not present run the server on the local host
@@ -70,11 +73,9 @@ impl Listener {
                 Ok((mut _stream, addr)) => {
                     info!("User {} has connected.", addr,);
                     let connection = ProtocolConnection::new(_stream).await?;
-                    let client_task: tokio::task::JoinHandle<Result<(), VeriflowError>> =
-                        tokio::spawn(async move {
-                            Self::handle_client(connection).await?;
-                            Ok(())
-                        });
+                    tokio::spawn(async move {
+                        let _ = Self::handle_client(connection).await;
+                    });
                 }
 
                 Err(e) => error!(
@@ -89,40 +90,59 @@ impl Listener {
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
         let file_header: FileHeader = serde_json::from_str(&string_header).unwrap();
-        Self::handle_operation(&file_header).await?;
+        Self::handle_operation(&file_header, connection).await?;
         Ok(())
     }
 
-    async fn handle_operation(header: &FileHeader) -> io::Result<()> {
+    async fn handle_operation(
+        header: &FileHeader,
+        connection: ProtocolConnection,
+    ) -> io::Result<()> {
         let operation = &header.command;
         match operation {
             Command::Upload => {
-                Self::handle_upload(header).await?;
+                Self::handle_upload(header, connection).await?;
             }
             Command::Download => {
-                Self::handle_download(header).await?;
+                Self::handle_download(header, connection).await?;
             }
             Command::List => {
-                Self::handle_list().await?;
+                //Self::handle_list(connection).await?;
             }
         }
         Ok(())
     }
 
-    async fn handle_upload(header: &FileHeader) -> io::Result<()> {
-        // Milo TODO
+    async fn handle_upload(
+        header: &FileHeader,
+        mut connection: ProtocolConnection,
+    ) -> io::Result<()> {
+        let filename: &String = &header.name;
+        let mut received_file = File::create(String::from(Self::FILE_PATH) + filename).await?;
+        connection
+            .read_file_to_disk(&mut received_file, header.size)
+            .await?;
         Ok(())
     }
 
-    async fn handle_download(header: &FileHeader) -> io::Result<()> {
-        //Milo TODO
+    async fn handle_download(
+        header: &FileHeader,
+        mut connection: ProtocolConnection,
+    ) -> io::Result<()> {
+        let filename: &String = &header.name;
+        let mut file_to_send = File::open(String::from(Self::FILE_PATH) + filename).await?;
+        let file_meta_data = fs::metadata(String::from(Self::FILE_PATH) + filename).await?;
+        let file_size = file_meta_data.file_size();
+        connection
+            .write_file_to_stream(&mut file_to_send, file_size)
+            .await?;
         Ok(())
     }
 
-    async fn handle_list() -> io::Result<()> {
+    /*async fn handle_list(mut connection: ProtocolConnection) -> io::Result<()> {
         //Milo TODO
         Ok(())
-    }
+    }*/
     ///Accept a single tcp connection
     /// # Returns
     ///
