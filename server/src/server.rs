@@ -16,7 +16,7 @@ pub struct Listener {
 
 impl Listener {
     //const MAX_BUFFER_SIZE: usize = 4096;
-    const FILE_PATH: &str = "../../Veriflow/resources/";
+    const FILE_PATH: &str = "../Veriflow/resources/";
     ///Used to initialise a new server listener
     /// # Arguments
     /// * 'host' - A '&str' which represents the ip address of the server
