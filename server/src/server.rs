@@ -132,7 +132,7 @@ impl Listener {
         let filename: &String = &header.name;
         let mut file_to_send = File::open(String::from(Self::FILE_PATH) + filename).await?;
         let file_meta_data = fs::metadata(String::from(Self::FILE_PATH) + filename).await?;
-        let file_size = file_meta_data.file_size();
+        let file_size = file_meta_data.len();
         connection
             .write_file_to_stream(&mut file_to_send, file_size)
             .await?;
