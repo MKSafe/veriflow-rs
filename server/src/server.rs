@@ -121,7 +121,7 @@ impl Listener {
         mut connection: ProtocolConnection,
     ) -> io::Result<()> {
         let filename: &String = &header.name;
-        let full_file_path = String::from(Self::FILE_PATH) + &filename;
+        let full_file_path = String::from(Self::FILE_PATH) + filename;
         let mut received_file = File::create(&full_file_path).await?;
         connection
             .read_file_to_disk(&mut received_file, header.size)
