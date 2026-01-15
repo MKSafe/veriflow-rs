@@ -111,7 +111,7 @@ impl ProtocolConnection {
             let remaining_bytes = file_size - total_bytes_read;
             let bytes_to_read: usize = cmp::min(buffer.len() as u64, remaining_bytes) as usize;
             input.read_exact(&mut buffer[..bytes_to_read]).await?;
-            self.stream.write_all(&buffer).await?;
+            self.stream.write_all(&buffer[..bytes_to_read]).await?;
             total_bytes_read += bytes_to_read as u64;
         }
         self.stream.flush().await?;
