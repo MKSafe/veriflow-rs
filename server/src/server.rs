@@ -1,12 +1,13 @@
 use common::protocol::ProtocolConnection;
 use common::Command;
 use common::FileHeader;
-/*use common::VeriflowError;
-use tokio::io::AsyncWriteExt;*/
+/*use common::VeriflowError;*/
 use sha2::{Digest, Sha256};
 use std::io;
+use std::path::Path;
 use tokio::fs;
-use tokio::fs::{File, Path};
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 ///This struct represents the listener that will handle connections
@@ -120,13 +121,14 @@ impl Listener {
         mut connection: ProtocolConnection,
     ) -> io::Result<()> {
         let filename: &String = &header.name;
-        let mut received_file = File::create(String::from(Self::FILE_PATH) + filename).await?;
+        let full_file_path = String::from(Self::FILE_PATH) + &filename;
+        let mut received_file = File::create(&full_file_path).await?;
         connection
             .read_file_to_disk(&mut received_file, header.size)
             .await?;
-        let received_file_hash = Self::hash_file(String::from(Self::FILE_PATH) + filename).await?;
+        let received_file_hash = Self::hash_file(Path::new(&full_file_path)).await?;
         if header.hash != received_file_hash {
-            fs::remove_file(String::from(Self::FILE_PATH) + filename).await?;
+            fs::remove_file(full_file_path).await?;
             error!("There has been an error when comparing the expected hash to the calculated hash retry sending the file");
         } else {
             info!("File successfuly received");
@@ -135,14 +137,15 @@ impl Listener {
     }
     ///Handles a clients download request
     async fn handle_download(
-        mut header: &FileHeader,
+        header: &FileHeader,
         mut connection: ProtocolConnection,
     ) -> io::Result<()> {
-        let filename: String = header.name;
-        let mut file_to_send = File::open(String::from(Self::FILE_PATH) + &filename).await?;
-        let file_meta_data = fs::metadata(String::from(Self::FILE_PATH) + &filename).await?;
+        let filename: String = header.name.clone();
+        let full_file_path = String::from(Self::FILE_PATH) + &filename;
+        let mut file_to_send = File::open(&full_file_path).await?;
+        let file_meta_data = fs::metadata(&full_file_path).await?;
         let file_size = file_meta_data.len();
-        let file_hash = Self::hash_file(String::from(Self::FILE_PATH) + &filename).await?;
+        let file_hash = Self::hash_file(Path::new(&full_file_path)).await?;
         let file_header = FileHeader {
             command: Command::Upload,
             name: filename,
@@ -182,9 +185,6 @@ impl Listener {
 
         // get file with tokio
         let mut file = File::open(path).await?;
-
-        // get file metadata
-        let file_metadata = file.metadata().await?;
 
         // create hasher for SHA256
         let mut hasher: Sha256 = Sha256::new();
