@@ -1,6 +1,7 @@
 use common::protocol::ProtocolConnection;
 use common::Command;
 use common::FileHeader;
+use std::fs;
 /*use common::VeriflowError;
 use tokio::io::AsyncWriteExt;*/
 use std::io;
@@ -85,6 +86,7 @@ impl Listener {
             }
         }
     }
+    ///Used to concurrently handle clients
     async fn handle_client(mut connection: ProtocolConnection) -> io::Result<()> {
         let prefix_len = connection.read_prefix().await?;
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
@@ -93,7 +95,7 @@ impl Listener {
         Self::handle_operation(&file_header, connection).await?;
         Ok(())
     }
-
+    ///Function to manage the client operations
     async fn handle_operation(
         header: &FileHeader,
         connection: ProtocolConnection,
@@ -102,7 +104,6 @@ impl Listener {
         match operation {
             Command::Upload => {
                 Self::handle_upload(header, connection).await?;
-                info!("A file has been received");
             }
             Command::Download => {
                 Self::handle_download(header, connection).await?;
@@ -113,7 +114,7 @@ impl Listener {
         }
         Ok(())
     }
-
+    ///Handles clients' upload operation
     async fn handle_upload(
         header: &FileHeader,
         mut connection: ProtocolConnection,
@@ -123,9 +124,16 @@ impl Listener {
         connection
             .read_file_to_disk(&mut received_file, header.size)
             .await?;
+        let received_file_hash = Self::hash_file(String::from(Self::FILE_PATH) + filename).await?;
+        if &header.hash != received_file_hash {
+            fs::remove_file(String::from(Self::FILE_PATH) + filename).await?;
+            error!("There has been an error when comparing the expected hash to the calculated hash retry sending the file");
+        } else {
+            info!("File successfuly received");
+        }
         Ok(())
     }
-
+    ///Handles a clients download request
     async fn handle_download(
         header: &FileHeader,
         mut connection: ProtocolConnection,
@@ -134,6 +142,15 @@ impl Listener {
         let mut file_to_send = File::open(String::from(Self::FILE_PATH) + filename).await?;
         let file_meta_data = fs::metadata(String::from(Self::FILE_PATH) + filename).await?;
         let file_size = file_meta_data.len();
+        let file_hash = Self::hash_file(String::from(Self::FILE_PATH) + filename).await?;
+        let file_header = FileHeader {
+            command: Command.Upload,
+            name: filename,
+            size: &file_size,
+            hash: file_hash,
+        };
+        let serialized_header = serde_json::to_string(file_header).unwrap()?;
+        connection.send_header(&serialized_header).await?;
         connection
             .write_file_to_stream(&mut file_to_send, file_size)
             .await?;
@@ -156,5 +173,56 @@ impl Listener {
     ///Returns the current address bound to the listener
     pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
         self.listener.local_addr()
+    }
+    ///Calculates the SHA256 hash of a file
+    async fn hash_file(path: &Path) -> io::Result<String> {
+        // Buffer
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+
+        // get file with tokio
+        let mut file = File::open(path).await?;
+
+        // get file metadata
+        let file_metadata = file.metadata().await?;
+
+        // create progress bar
+        // set max to len of file and operation description
+        let progress_bar: ProgressBar = ui::create_progress_bar(file_metadata.len(), "Hashing ...");
+
+        // create hasher for SHA256
+        let mut hasher: Sha256 = Sha256::new();
+
+        // read file using buffer
+        loop {
+            // Read chunk from file (number of bytes successfully read)
+            let bytes_read: usize = file.read(&mut buffer).await?;
+
+            // finish reading file
+            if bytes_read == 0 {
+                // break loop
+                break;
+            }
+
+            // update progress bar
+            progress_bar.inc(bytes_read as u64);
+
+            // load the chunk from file
+            let current_chunk: &[u8] = &buffer[..bytes_read];
+
+            // update hasher with current chunk reference
+            hasher.update(current_chunk);
+        }
+
+        // finalise hasher, get its output (byte array)
+        let file_hash = hasher.finalize();
+
+        // finish progress bar
+        progress_bar.finish_with_message("Hashing Complete!");
+
+        // Convert hash (byte array) to hex
+        let file_hash_hex: String = format!("{:x}", file_hash);
+
+        // Send back if successful
+        Ok(file_hash_hex)
     }
 }
