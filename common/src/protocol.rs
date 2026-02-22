@@ -96,6 +96,28 @@ impl ProtocolConnection {
         Ok(buf)
     }
 
+    pub async fn write_file_to_stream(
+        &mut self,
+        input: &mut File,
+        file_size: u64,
+    ) -> io::Result<()> {
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut total_bytes_read: u64 = 0;
+
+        loop {
+            if total_bytes_read >= file_size {
+                break;
+            }
+            let remaining_bytes = file_size - total_bytes_read;
+            let bytes_to_read: usize = cmp::min(buffer.len() as u64, remaining_bytes) as usize;
+            input.read_exact(&mut buffer[..bytes_to_read]).await?;
+            self.stream.write_all(&buffer[..bytes_to_read]).await?;
+            total_bytes_read += bytes_to_read as u64;
+        }
+        self.stream.flush().await?;
+        Ok(())
+    }
+
     /// Streams a file to disk from the network
     pub async fn read_file_to_disk(&mut self, output: &mut File, file_size: u64) -> io::Result<()> {
         // Buffer
