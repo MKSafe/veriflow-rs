@@ -1,8 +1,9 @@
 //! File Upload Logic
 
-use crate::{hashing, ui};
+use crate::ui;
 use common::{
-    protocol::ProtocolConnection, protocol::BUFFER_SIZE, Command, FileHeader, VeriflowError,
+    hashing, protocol::ProtocolConnection, protocol::BUFFER_SIZE, Command, FileHeader,
+    VeriflowError,
 };
 use std::path::Path;
 use tokio::fs::File;
@@ -27,7 +28,16 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
 
     // Hashing
     println!("Starting Hashing...");
-    let file_hash = hashing::hash_file(path).await?;
+
+    // create progress bar
+    // set max to len of file and operation description
+    let mut progress_bar = ui::create_progress_bar(file_size, "Hashing ...");
+
+    let file_hash =
+        hashing::hash_file(path, |bytes_read| progress_bar.inc(bytes_read as u64)).await?;
+
+    // finish progress bar
+    progress_bar.finish_with_message("Hashing Complete!");
 
     println!("File Hash: {file_hash}");
 
@@ -56,11 +66,11 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
     connection.send_header(&header_json).await?;
 
     // File Upload
-    println!("Starting Upload...");
+    println!("Starting Uploading...");
 
     // create progress bar
     // set max to len of file and operation description
-    let progress_bar = ui::create_progress_bar(file_size, "Uploading ...");
+    progress_bar = ui::create_progress_bar(file_size, "Uploading ...");
 
     // Stream the body
 
