@@ -12,7 +12,7 @@ const BUFFER_SIZE: usize = 4096;
 
 // Hashes a file using SHA256
 // Function now accepts a callback
-pub async fn hash_file<F>(path: &Path, mut on_progress: F) -> io::Result<String>
+pub async fn hash_file<F>(path: &Path, mut on_progress: F) -> crate::Result<String>
 where
     F: FnMut(usize),
 {

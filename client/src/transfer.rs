@@ -10,6 +10,7 @@ use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 
+/// Upload to Server
 pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
     // Offline Logic (Validation)
 
@@ -100,6 +101,45 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
 
     // finish progress bar
     progress_bar.finish_with_message("Upload Complete!");
+
+    Ok(())
+}
+
+/// Download from Server
+pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
+    
+    // Connect to server
+    println!("Connecting to {ip}...");
+
+    // connect via TCP stream
+    let stream = TcpStream::connect(ip).await?;
+
+    // move ownership of stream into ProtocolConnection
+    let mut connection = ProtocolConnection::new(stream).await?;
+
+    // get file name -- Strict error handling (Allow ONLY UTF-8 characters)
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or(VeriflowError::InvalidPath)?;
+
+    // Setup FileHeader
+    let file_header: FileHeader = FileHeader {
+        command: Command::Download,
+        name: String::from(file_name),
+        size: 0, // Unknown size
+        hash: String::new(), // Unknown hash
+    };
+
+    // Serialise the body
+    // JSON string
+    let header_json = serde_json::to_string(&file_header)?;
+
+    // send header via helper
+    connection.send_header(&header_json).await?;
+
+    // File Upload
+    println!("Starting Downloading...");
 
     Ok(())
 }
