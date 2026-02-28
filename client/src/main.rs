@@ -3,7 +3,6 @@ use clap::Parser;
 use crate::cli::Args;
 
 mod cli;
-mod hashing;
 mod transfer;
 mod ui;
 

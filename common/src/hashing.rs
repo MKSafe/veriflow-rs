@@ -1,7 +1,5 @@
 //! File hashing via SHA256
 
-use crate::ui;
-use indicatif::ProgressBar;
 use sha2::{Digest, Sha256};
 use std::io;
 use std::path::Path;
@@ -12,19 +10,17 @@ use tokio::io::AsyncReadExt;
 // Buffer size of 8kb for hashing
 const BUFFER_SIZE: usize = 4096;
 
-pub async fn hash_file(path: &Path) -> io::Result<String> {
+// Hashes a file using SHA256
+// Function now accepts a callback
+pub async fn hash_file<F>(path: &Path, mut on_progress: F) -> io::Result<String>
+where
+    F: FnMut(usize),
+{
     // Buffer
     let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
 
     // get file with tokio
     let mut file = File::open(path).await?;
-
-    // get file metadata
-    let file_metadata = file.metadata().await?;
-
-    // create progress bar
-    // set max to len of file and operation description
-    let progress_bar: ProgressBar = ui::create_progress_bar(file_metadata.len(), "Hashing ...");
 
     // create hasher for SHA256
     let mut hasher: Sha256 = Sha256::new();
@@ -40,8 +36,8 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
             break;
         }
 
-        // update progress bar
-        progress_bar.inc(bytes_read as u64);
+        // trigger callback for progressbar
+        on_progress(bytes_read);
 
         // load the chunk from file
         let current_chunk: &[u8] = &buffer[..bytes_read];
@@ -52,9 +48,6 @@ pub async fn hash_file(path: &Path) -> io::Result<String> {
 
     // finalise hasher, get its output (byte array)
     let file_hash = hasher.finalize();
-
-    // finish progress bar
-    progress_bar.finish_with_message("Hashing Complete!");
 
     // Convert hash (byte array) to hex
     let file_hash_hex: String = format!("{:x}", file_hash);

@@ -1,13 +1,11 @@
+use common::hashing;
 use common::protocol::ProtocolConnection;
 use common::Command;
 use common::FileHeader;
-/*use common::VeriflowError;*/
-use sha2::{Digest, Sha256};
 use std::io;
 use std::path::Path;
 use tokio::fs;
 use tokio::fs::File;
-use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
 ///This struct represents the listener that will handle connections
@@ -17,7 +15,6 @@ pub struct Listener {
 }
 
 impl Listener {
-    const BUFFER_SIZE: usize = 4096;
     const FILE_PATH: &str = "../Veriflow/resources/";
     ///Used to initialise a new server listener
     /// # Arguments
@@ -92,7 +89,7 @@ impl Listener {
         let prefix_len = connection.read_prefix().await?;
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
-        let file_header: FileHeader = serde_json::from_str(&string_header).unwrap();
+        let file_header: FileHeader = serde_json::from_str(&string_header)?;
         Self::handle_operation(&file_header, connection).await?;
         Ok(())
     }
@@ -126,7 +123,7 @@ impl Listener {
         connection
             .read_file_to_disk(&mut received_file, header.size)
             .await?;
-        let received_file_hash = Self::hash_file(Path::new(&full_file_path)).await?;
+        let received_file_hash = hashing::hash_file(Path::new(&full_file_path), |_| {}).await?;
         if header.hash != received_file_hash {
             fs::remove_file(full_file_path).await?;
             error!("There has been an error when comparing the expected hash to the calculated hash retry sending the file");
@@ -145,16 +142,15 @@ impl Listener {
         let mut file_to_send = File::open(&full_file_path).await?;
         let file_meta_data = fs::metadata(&full_file_path).await?;
         let file_size = file_meta_data.len();
-        let file_hash = Self::hash_file(Path::new(&full_file_path)).await?;
+        let file_hash = hashing::hash_file(Path::new(&full_file_path), |_| {}).await?; // use saved .sha256 sidecar file in future
         let file_header = FileHeader {
             command: Command::Upload,
             name: filename,
             size: file_size,
             hash: file_hash,
         };
-        let serialized_header_wrapped = serde_json::to_string(&file_header);
-        let serialized_header_unwrapped = serialized_header_wrapped.unwrap();
-        connection.send_header(&serialized_header_unwrapped).await?;
+        let serialized_header = serde_json::to_string(&file_header)?;
+        connection.send_header(&serialized_header).await?;
         connection
             .write_file_to_stream(&mut file_to_send, file_size)
             .await?;
@@ -177,43 +173,5 @@ impl Listener {
     ///Returns the current address bound to the listener
     pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
         self.listener.local_addr()
-    }
-    ///Calculates the SHA256 hash of a file
-    async fn hash_file(path: &Path) -> io::Result<String> {
-        // Buffer
-        let mut buffer: [u8; Self::BUFFER_SIZE] = [0; Self::BUFFER_SIZE];
-
-        // get file with tokio
-        let mut file = File::open(path).await?;
-
-        // create hasher for SHA256
-        let mut hasher: Sha256 = Sha256::new();
-
-        // read file using buffer
-        loop {
-            // Read chunk from file (number of bytes successfully read)
-            let bytes_read: usize = file.read(&mut buffer).await?;
-
-            // finish reading file
-            if bytes_read == 0 {
-                // break loop
-                break;
-            }
-
-            // load the chunk from file
-            let current_chunk: &[u8] = &buffer[..bytes_read];
-
-            // update hasher with current chunk reference
-            hasher.update(current_chunk);
-        }
-
-        // finalise hasher, get its output (byte array)
-        let file_hash = hasher.finalize();
-
-        // Convert hash (byte array) to hex
-        let file_hash_hex: String = format!("{:x}", file_hash);
-
-        // Send back if successful
-        Ok(file_hash_hex)
     }
 }
