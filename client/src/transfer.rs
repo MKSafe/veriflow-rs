@@ -176,14 +176,16 @@ pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
     // set max to len of file and operation description
     let progress_bar = ui::create_progress_bar(received_size, "Hashing ...");
 
-    let file_hash =
-        hashing::hash_file(path, |bytes_read| progress_bar.inc(bytes_read as u64)).await?;
+    let file_hash = hashing::hash_file(&full_download_path, |bytes_read| {
+        progress_bar.inc(bytes_read as u64)
+    })
+    .await?;
 
     // finish progress bar
     progress_bar.finish_with_message("Hashing Complete!");
 
     // check if hash is not the same
-    if file_hash == received_hash {
+    if file_hash != received_hash {
         // clean up the corrupted file
         tokio::fs::remove_file(&full_download_path).await?;
         println!("File removed!");
