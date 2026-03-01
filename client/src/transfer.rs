@@ -107,7 +107,6 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
 
 /// Download from Server
 pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
-    
     // Connect to server
     println!("Connecting to {ip}...");
 
@@ -127,7 +126,7 @@ pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
     let file_header: FileHeader = FileHeader {
         command: Command::Download,
         name: String::from(file_name),
-        size: 0, // Unknown size
+        size: 0,             // Unknown size
         hash: String::new(), // Unknown hash
     };
 
@@ -154,7 +153,7 @@ pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
     let received_hash = file_header.hash;
 
     // Downloading to disk
-    
+
     // Ensure download dir exists
     let download_dir = Path::new("../Veriflow/Downloads");
     tokio::fs::create_dir_all(download_dir).await?;
@@ -164,13 +163,34 @@ pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
     // create file on disk
     let mut download_file = File::create(&full_download_path).await?;
 
-    connection.read_file_to_disk(&mut download_file, received_size).await?;
+    connection
+        .read_file_to_disk(&mut download_file, received_size)
+        .await?; // add progress bar
 
     println!("Download Complete!");
 
     // Verification (Hashing)
+    println!("Verifying File Integrity...");
 
+    // create progress bar
+    // set max to len of file and operation description
+    let progress_bar = ui::create_progress_bar(received_size, "Hashing ...");
 
+    let file_hash =
+        hashing::hash_file(path, |bytes_read| progress_bar.inc(bytes_read as u64)).await?;
+
+    // finish progress bar
+    progress_bar.finish_with_message("Hashing Complete!");
+
+    // check if hash is not the same
+    if file_hash == received_hash {
+        // clean up the corrupted file
+        tokio::fs::remove_file(&full_download_path).await?;
+        println!("File removed!");
+
+        // return error
+        return Err(VeriflowError::HashMismatch);
+    }
 
     Ok(())
 }
