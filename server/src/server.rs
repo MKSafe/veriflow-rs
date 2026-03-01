@@ -85,7 +85,7 @@ impl Listener {
         }
     }
     ///Used to concurrently handle clients
-    async fn handle_client(mut connection: ProtocolConnection) -> io::Result<()> {
+    async fn handle_client(mut connection: ProtocolConnection) -> common::Result<()> {
         let prefix_len = connection.read_prefix().await?;
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
@@ -97,7 +97,7 @@ impl Listener {
     async fn handle_operation(
         header: &FileHeader,
         connection: ProtocolConnection,
-    ) -> io::Result<()> {
+    ) -> common::Result<()> {
         let operation = &header.command;
         match operation {
             Command::Upload => {
@@ -116,7 +116,7 @@ impl Listener {
     async fn handle_upload(
         header: &FileHeader,
         mut connection: ProtocolConnection,
-    ) -> io::Result<()> {
+    ) -> common::Result<()> {
         let filename: &String = &header.name;
         let full_file_path = String::from(Self::FILE_PATH) + filename;
         let mut received_file = File::create(&full_file_path).await?;
@@ -136,7 +136,7 @@ impl Listener {
     async fn handle_download(
         header: &FileHeader,
         mut connection: ProtocolConnection,
-    ) -> io::Result<()> {
+    ) -> common::Result<()> {
         let filename: String = header.name.clone();
         let full_file_path = String::from(Self::FILE_PATH) + &filename;
         let mut file_to_send = File::open(&full_file_path).await?;

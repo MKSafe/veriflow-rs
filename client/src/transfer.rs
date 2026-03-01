@@ -1,4 +1,4 @@
-//! File Upload Logic
+//! File Upload & Download Logic
 
 use crate::ui;
 use common::{
@@ -138,8 +138,39 @@ pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
     // send header via helper
     connection.send_header(&header_json).await?;
 
-    // File Upload
-    println!("Starting Downloading...");
+    println!("Waiting for server response...");
+
+    // get prefix
+    let prefix_len = connection.read_prefix().await?;
+    // get JSON bytes from stream
+    let header: Vec<u8> = connection.read_body(prefix_len).await?;
+    // convert bytes into UTF-8 string
+    let string_header = String::from_utf8_lossy(&header);
+    // parse the JSON string back into a fileheader
+    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+
+    // extract size and hash from header
+    let received_size = file_header.size;
+    let received_hash = file_header.hash;
+
+    // Downloading to disk
+    
+    // Ensure download dir exists
+    let download_dir = Path::new("../Veriflow/Downloads");
+    tokio::fs::create_dir_all(download_dir).await?;
+    // combine into a single valid path
+    let full_download_path = download_dir.join(file_name);
+
+    // create file on disk
+    let mut download_file = File::create(&full_download_path).await?;
+
+    connection.read_file_to_disk(&mut download_file, received_size).await?;
+
+    println!("Download Complete!");
+
+    // Verification (Hashing)
+
+
 
     Ok(())
 }

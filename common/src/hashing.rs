@@ -1,7 +1,6 @@
 //! File hashing via SHA256
 
 use sha2::{Digest, Sha256};
-use std::io;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
