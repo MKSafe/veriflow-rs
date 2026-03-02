@@ -42,7 +42,7 @@ impl Listener {
         }
         //When the host or the port is not present run the server on the local host
         if host.is_empty() || port.is_empty() {
-            let listener = TcpListener::bind("127.0.0.1:0").await?;
+            let listener = TcpListener::bind("0.0.0.0:8080").await?;
             let port = listener.local_addr().unwrap().port();
             info!("Listener is running on {}", port);
             //returns a new listener struct object
