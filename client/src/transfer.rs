@@ -1,4 +1,4 @@
-//! File Upload Logic
+//! File Upload & Download Logic
 
 use crate::ui;
 use common::{
@@ -10,6 +10,7 @@ use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 
+/// Upload to Server
 pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
     // Offline Logic (Validation)
 
@@ -100,6 +101,98 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
 
     // finish progress bar
     progress_bar.finish_with_message("Upload Complete!");
+
+    Ok(())
+}
+
+/// Download from Server
+pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
+    // Connect to server
+    println!("Connecting to {ip}...");
+
+    // connect via TCP stream
+    let stream = TcpStream::connect(ip).await?;
+
+    // move ownership of stream into ProtocolConnection
+    let mut connection = ProtocolConnection::new(stream).await?;
+
+    // get file name -- Strict error handling (Allow ONLY UTF-8 characters)
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or(VeriflowError::InvalidPath)?;
+
+    // Setup FileHeader
+    let file_header: FileHeader = FileHeader {
+        command: Command::Download,
+        name: String::from(file_name),
+        size: 0,             // Unknown size
+        hash: String::new(), // Unknown hash
+    };
+
+    // Serialise the body
+    // JSON string
+    let header_json = serde_json::to_string(&file_header)?;
+
+    // send header via helper
+    connection.send_header(&header_json).await?;
+
+    println!("Waiting for server response...");
+
+    // get prefix
+    let prefix_len = connection.read_prefix().await?;
+    // get JSON bytes from stream
+    let header: Vec<u8> = connection.read_body(prefix_len).await?;
+    // convert bytes into UTF-8 string
+    let string_header = String::from_utf8_lossy(&header);
+    // parse the JSON string back into a fileheader
+    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+
+    // extract size and hash from header
+    let received_size = file_header.size;
+    let received_hash = file_header.hash;
+
+    // Downloading to disk
+
+    // Ensure download dir exists
+    let download_dir = Path::new("../Veriflow/Downloads");
+    tokio::fs::create_dir_all(download_dir).await?;
+    // combine into a single valid path
+    let full_download_path = download_dir.join(file_name);
+
+    // create file on disk
+    let mut download_file = File::create(&full_download_path).await?;
+
+    connection
+        .read_file_to_disk(&mut download_file, received_size)
+        .await?; // add progress bar
+
+    println!("Download Complete!");
+
+    // Verification (Hashing)
+    println!("Verifying File Integrity...");
+
+    // create progress bar
+    // set max to len of file and operation description
+    let progress_bar = ui::create_progress_bar(received_size, "Hashing ...");
+
+    let file_hash = hashing::hash_file(&full_download_path, |bytes_read| {
+        progress_bar.inc(bytes_read as u64)
+    })
+    .await?;
+
+    // finish progress bar
+    progress_bar.finish_with_message("Hashing Complete!");
+
+    // check if hash is not the same
+    if file_hash != received_hash {
+        // clean up the corrupted file
+        tokio::fs::remove_file(&full_download_path).await?;
+        println!("File removed!");
+
+        // return error
+        return Err(VeriflowError::HashMismatch);
+    }
 
     Ok(())
 }

@@ -1,7 +1,6 @@
 //! File hashing via SHA256
 
 use sha2::{Digest, Sha256};
-use std::io;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
@@ -12,7 +11,7 @@ const BUFFER_SIZE: usize = 4096;
 
 // Hashes a file using SHA256
 // Function now accepts a callback
-pub async fn hash_file<F>(path: &Path, mut on_progress: F) -> io::Result<String>
+pub async fn hash_file<F>(path: &Path, mut on_progress: F) -> crate::Result<String>
 where
     F: FnMut(usize),
 {

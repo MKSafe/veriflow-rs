@@ -19,8 +19,11 @@ async fn main() {
     let result = if let Some(path) = args.upload {
         // Upload
         transfer::upload_file(&path, &args.ip).await
+    } else if let Some(path) = args.download {
+        // Download
+        transfer::download_file(&path, &args.ip).await
     } else {
-        println!("WIP...");
+        // List
         Ok(())
     };
 

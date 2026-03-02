@@ -34,6 +34,10 @@ pub enum VeriflowError {
     // File Path Error
     #[error("Invalid Path: Could not extract a valid filename from the provided path")]
     InvalidPath,
+
+    // Hash Mismatch Error
+    #[error("Hash Mismatch: The downloaded file was corrupted")]
+    HashMismatch,
 }
 
 // Allow writing Result<String> instead of Result<String, VeriflowError>
