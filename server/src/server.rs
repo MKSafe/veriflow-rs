@@ -15,7 +15,6 @@ pub struct Listener {
 }
 
 impl Listener {
-    const FILE_PATH: &str = "../Veriflow/resources/";
     ///Used to initialise a new server listener
     /// # Arguments
     /// * 'host' - A '&str' which represents the ip address of the server
@@ -33,10 +32,6 @@ impl Listener {
     /// }
     /// ```
     pub async fn new(host: &str, port: &str) -> io::Result<Listener> {
-        let path_exists = tokio::fs::try_exists(Self::FILE_PATH).await?;
-        if !path_exists {
-            fs::create_dir_all(Self::FILE_PATH).await?;
-        }
         //When the host or the port is not present run the server on the local host
         if host.is_empty() || port.is_empty() {
             let listener = TcpListener::bind("0.0.0.0:8080").await?;
@@ -63,7 +58,7 @@ impl Listener {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn listen(&mut self) -> io::Result<()> {
+    pub async fn listen(&mut self,path : String) -> io::Result<()> {
         //infitnite loop this will act as the servers main loop
         loop {
             //The listener.accept() function can possibly throw an error so we handle it using the match keyword
@@ -72,8 +67,9 @@ impl Listener {
                 Ok((mut _stream, addr)) => {
                     info!("User {} has connected.", addr,);
                     let connection = ProtocolConnection::new(_stream).await?;
+                    let dir = path.clone(); 
                     tokio::spawn(async move {
-                        let _ = Self::handle_client(connection).await;
+                        let _ = Self::handle_client(connection,dir).await;
                     });
                 }
 
@@ -85,29 +81,30 @@ impl Listener {
         }
     }
     ///Used to concurrently handle clients
-    async fn handle_client(mut connection: ProtocolConnection) -> common::Result<()> {
+    async fn handle_client(mut connection: ProtocolConnection, path : String) -> common::Result<()> {
         let prefix_len = connection.read_prefix().await?;
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
         let file_header: FileHeader = serde_json::from_str(&string_header)?;
-        Self::handle_operation(&file_header, connection).await?;
+        Self::handle_operation(&file_header, connection, path).await?;
         Ok(())
     }
     ///Function to manage the client operations
     async fn handle_operation(
         header: &FileHeader,
         connection: ProtocolConnection,
+        path : String
     ) -> common::Result<()> {
         let operation = &header.command;
         match operation {
             Command::Upload => {
-                Self::handle_upload(header, connection).await?;
+                Self::handle_upload(header, connection,path).await?;
             }
             Command::Download => {
-                Self::handle_download(header, connection).await?;
+                Self::handle_download(header, connection,path).await?;
             }
             Command::List => {
-                //Self::handle_list(connection).await?;
+                Self::handle_list(connection,path).await?;
             }
         }
         Ok(())
@@ -116,9 +113,10 @@ impl Listener {
     async fn handle_upload(
         header: &FileHeader,
         mut connection: ProtocolConnection,
+        path : String,
     ) -> common::Result<()> {
         let filename: &String = &header.name;
-        let full_file_path = String::from(Self::FILE_PATH) + filename;
+        let full_file_path = path + filename;
         let mut received_file = File::create(&full_file_path).await?;
         connection
             .read_file_to_disk(&mut received_file, header.size)
@@ -136,9 +134,10 @@ impl Listener {
     async fn handle_download(
         header: &FileHeader,
         mut connection: ProtocolConnection,
+        path : String,
     ) -> common::Result<()> {
         let filename: String = header.name.clone();
-        let full_file_path = String::from(Self::FILE_PATH) + &filename;
+        let full_file_path = path + &filename;
         let mut file_to_send = File::open(&full_file_path).await?;
         let file_meta_data = fs::metadata(&full_file_path).await?;
         let file_size = file_meta_data.len();
@@ -157,10 +156,10 @@ impl Listener {
         Ok(())
     }
 
-    /*async fn handle_list(mut connection: ProtocolConnection) -> io::Result<()> {
-        //Milo TODO
+    async fn handle_list(mut connection: ProtocolConnection, path: String) -> io::Result<()> {
+        
         Ok(())
-    }*/
+    }
     ///Accept a single tcp connection
     /// # Returns
     ///
