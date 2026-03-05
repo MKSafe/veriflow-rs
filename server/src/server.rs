@@ -54,7 +54,7 @@ impl Listener {
     /// async fn some_func() -> std::io::Result<()>{
     ///     use server::server::Listener;
     ///     let mut listener = Listener::new("x.x.x.x","xxxx").await?;
-    ///     listener.listen("directory of the resources you want to share").await?;
+    ///     listener.listen("directory of the resources you want to share".to_string()).await?;
     ///     Ok(())
     /// }
     /// ```
