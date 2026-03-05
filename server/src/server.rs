@@ -156,10 +156,10 @@ impl Listener {
         Ok(())
     }
 
-    async fn handle_list(mut connection: ProtocolConnection, path: String) -> io::Result<()> {
+    /*async fn handle_list(mut connection: ProtocolConnection, path: String) -> io::Result<()> {
         
         Ok(())
-    }
+    }*/
     ///Accept a single tcp connection
     /// # Returns
     ///
