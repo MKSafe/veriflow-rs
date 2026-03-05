@@ -1,5 +1,20 @@
+use serde::{Deserialize, Serialize};
 pub mod server;
 
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct Config {
+    pub network: Network,
+    pub directory: Directory,
+}
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct Network {
+    pub ip: String,
+    pub port: String,
+}
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+pub struct Directory {
+    pub path: String,
+}
 #[cfg(test)]
 mod test {
     use crate::server::Listener;
