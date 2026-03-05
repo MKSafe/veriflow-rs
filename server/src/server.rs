@@ -58,7 +58,7 @@ impl Listener {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn listen(&mut self,path : String) -> io::Result<()> {
+    pub async fn listen(&mut self, path: String) -> io::Result<()> {
         //infitnite loop this will act as the servers main loop
         loop {
             //The listener.accept() function can possibly throw an error so we handle it using the match keyword
@@ -67,9 +67,9 @@ impl Listener {
                 Ok((mut _stream, addr)) => {
                     info!("User {} has connected.", addr,);
                     let connection = ProtocolConnection::new(_stream).await?;
-                    let dir = path.clone(); 
+                    let dir = path.clone();
                     tokio::spawn(async move {
-                        let _ = Self::handle_client(connection,dir).await;
+                        let _ = Self::handle_client(connection, dir).await;
                     });
                 }
 
@@ -81,7 +81,7 @@ impl Listener {
         }
     }
     ///Used to concurrently handle clients
-    async fn handle_client(mut connection: ProtocolConnection, path : String) -> common::Result<()> {
+    async fn handle_client(mut connection: ProtocolConnection, path: String) -> common::Result<()> {
         let prefix_len = connection.read_prefix().await?;
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
@@ -93,18 +93,18 @@ impl Listener {
     async fn handle_operation(
         header: &FileHeader,
         connection: ProtocolConnection,
-        path : String
+        path: String,
     ) -> common::Result<()> {
         let operation = &header.command;
         match operation {
             Command::Upload => {
-                Self::handle_upload(header, connection,path).await?;
+                Self::handle_upload(header, connection, path).await?;
             }
             Command::Download => {
-                Self::handle_download(header, connection,path).await?;
+                Self::handle_download(header, connection, path).await?;
             }
             Command::List => {
-                Self::handle_list(connection,path).await?;
+                Self::handle_list(connection, path).await?;
             }
         }
         Ok(())
@@ -113,7 +113,7 @@ impl Listener {
     async fn handle_upload(
         header: &FileHeader,
         mut connection: ProtocolConnection,
-        path : String,
+        path: String,
     ) -> common::Result<()> {
         let filename: &String = &header.name;
         let full_file_path = path + filename;
@@ -134,7 +134,7 @@ impl Listener {
     async fn handle_download(
         header: &FileHeader,
         mut connection: ProtocolConnection,
-        path : String,
+        path: String,
     ) -> common::Result<()> {
         let filename: String = header.name.clone();
         let full_file_path = path + &filename;
@@ -157,7 +157,7 @@ impl Listener {
     }
 
     /*async fn handle_list(mut connection: ProtocolConnection, path: String) -> io::Result<()> {
-        
+
         Ok(())
     }*/
     ///Accept a single tcp connection
