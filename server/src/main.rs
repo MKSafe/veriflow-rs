@@ -1,6 +1,5 @@
 use server::{server::Listener, Config};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use toml;
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     const FILE_PATH: &str = "../Veriflow/resources/";
@@ -29,7 +28,7 @@ async fn main() -> std::io::Result<()> {
             .open(CONFIG_PATH)
             .await?;
         let string_content = toml::to_string(&config_content).unwrap();
-        config_file.write_all(&string_content.as_bytes()).await?;
+        config_file.write_all(string_content.as_bytes()).await?;
         config_file.flush().await?;
     }
     let mut config_file = tokio::fs::File::open(CONFIG_PATH).await?;
