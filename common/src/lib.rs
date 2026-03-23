@@ -38,6 +38,12 @@ pub enum VeriflowError {
     // Hash Mismatch Error
     #[error("Hash Mismatch: The downloaded file was corrupted")]
     HashMismatch,
+
+    //TOML Error
+    #[error("Serialisation Error: {0}")]
+    TOMLser(#[from] toml::ser::Error),
+    #[error("Deserialisation Error: {0}")]
+    TOMLder(#[from] toml::de::Error),
 }
 
 // Allow writing Result<String> instead of Result<String, VeriflowError>
