@@ -16,7 +16,7 @@ async fn main() -> common::Result<()> {
                 port: "8080".to_string(),
             }),
             directory: (Directory {
-                path: CONFIG_PATH.to_string(),
+                path: FILE_PATH.to_string(),
             }),
         };
         let _ = tokio::fs::File::create(CONFIG_PATH).await?;
