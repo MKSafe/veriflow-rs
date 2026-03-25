@@ -22,9 +22,13 @@ async fn main() {
     } else if let Some(path) = args.download {
         // Download
         transfer::download_file(&path, &args.ip).await
-    } else {
+    } else if let Some(path) = args.delete {
+        // Delete
+        transfer::delete_file(&path, &args.ip).await
+    }
+    else {
         // List
-        Ok(())
+        transfer::list_files(&args.ip).await
     };
 
     // Global Error Handler

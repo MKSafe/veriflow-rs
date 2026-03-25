@@ -1,4 +1,4 @@
-//! File Upload & Download Logic
+//! File Upload, Delete, List & Download Logic
 
 use crate::ui;
 use common::{
@@ -193,6 +193,79 @@ pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
         // return error
         return Err(VeriflowError::HashMismatch);
     }
+
+    Ok(())
+}
+
+/// Delete from Server
+pub async fn delete_file(path: &Path, ip: &str) -> common::Result<()> {
+    // Connect to server
+    println!("Connecting to {ip}...");
+
+    // connect via TCP stream
+    let stream = TcpStream::connect(ip).await?;
+
+    // move ownership of stream into ProtocolConnection
+    let mut connection = ProtocolConnection::new(stream).await?;
+
+    // get file name -- Strict error handling (Allow ONLY UTF-8 characters)
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or(VeriflowError::InvalidPath)?;
+
+    // Setup FileHeader
+    let file_header: FileHeader = FileHeader {
+        command: Command::Delete,
+        name: String::from(file_name),
+        size: 0,             // No size
+        hash: String::new(), // No hash
+    };
+
+    // Serialise the body
+    // JSON string
+    let header_json = serde_json::to_string(&file_header)?;
+
+    println!("Sending delete request to {ip}...");
+
+    // send header via helper
+    connection.send_header(&header_json).await?;
+
+    // CS: wait for server response
+
+    Ok(())
+}
+
+/// List Server Files
+pub async fn list_files(ip: &str) -> common::Result<()> {
+    // Connect to server
+    println!("Connecting to {ip}...");
+
+    // connect via TCP stream
+    let stream = TcpStream::connect(ip).await?;
+
+    // move ownership of stream into ProtocolConnection
+    let mut connection = ProtocolConnection::new(stream).await?;
+
+    // Setup FileHeader
+    let file_header: FileHeader = FileHeader {
+        command: Command::List,
+        name: String::new(), // No name
+        size: 0,             // No size
+        hash: String::new(), // No hash
+    };
+
+    // Serialise the body
+    // JSON string
+    let header_json = serde_json::to_string(&file_header)?;
+
+    println!("Sending list request to {ip}...");
+
+    // send header via helper
+    connection.send_header(&header_json).await?;
+
+    // CS: wait for server response
+    // CS: output file tree
 
     Ok(())
 }

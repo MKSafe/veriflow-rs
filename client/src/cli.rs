@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[command(group(
   clap::ArgGroup::new("operation")
     .required(true)
-    .args(["upload", "download", "list"]),
+    .args(["upload", "download", "delete", "list"]),
 ))]
 pub struct Args {
     ///  IP of the server (host is added automatically)
@@ -23,6 +23,10 @@ pub struct Args {
     /// Download file from server
     #[arg(short, long, group = "operation")]
     pub download: Option<PathBuf>,
+
+    /// Delete file from server (long flag for safety)
+    #[arg(long, group = "operation")]
+    pub delete: Option<PathBuf>,
 
     /// List all files on server
     #[arg(short, long, group = "operation")]
