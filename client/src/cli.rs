@@ -11,10 +11,9 @@ use std::path::PathBuf;
     .args(["upload", "download", "list"]),
 ))]
 pub struct Args {
-    ///  IP of the server (host is added automatically)
-    // - defaults to localhost
-    #[arg(short, long, default_value = "127.0.0.1:8080")]
-    pub ip: String,
+    ///  IP of the server (host is added automatically as per config)
+    #[arg(short, long)]
+    pub ip: Option<String>,
 
     /// Upload file to server
     #[arg(short, long, group = "operation")]

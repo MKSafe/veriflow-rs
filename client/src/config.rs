@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 // Config Struct
 #[derive(Deserialize, Debug)]
+#[serde(default)] // to only fill missing blanks
 pub struct ClientConfig {
     pub ip: String,
     pub port: String,
@@ -18,5 +19,41 @@ impl Default for ClientConfig {
             port: String::from("8080"),
             download_dir: String::from("../Veriflow/Downloads"),
         }
+    }
+}
+
+impl ClientConfig {
+    pub fn load() -> Self {
+        // Attempt to read the file
+        let config_str = match std::fs::read_to_string("config.toml") {
+            Ok(content) => content,
+            // Cant read file / no file found
+            Err(_) => {
+                eprintln!("Config file not found.");
+                eprintln!("Creating a new one...");
+                
+                let default_config = Self::default();
+                
+                // create new TOML file (CS)
+                // if let () 
+
+                return default_config;
+            }
+        };
+
+        // Parse the TOML
+        match toml::from_str(&config_str) {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("Config Error: {e}.");
+                eprintln!("Using default settings...");
+                Self::default()
+            }
+        }
+    }
+
+    // Helper function for full address (ip + port)
+    pub fn address(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
     }
 }

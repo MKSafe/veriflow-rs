@@ -5,6 +5,7 @@ use crate::cli::Args;
 mod cli;
 mod transfer;
 mod ui;
+mod config;
 
 // Start tokio engine
 #[tokio::main]
@@ -12,16 +13,24 @@ async fn main() {
     // Parse CLI arguments
     let args = Args::parse();
 
+    // Load config
+    let config = config::ClientConfig::load();
+
+    // See if CLI argument was passed otherwise use config
+    let ip = args.ip.unwrap_or_else(|| config.address());
+
+    println!("{ip}");
+
     // Handle CLI arguments
 
     // Get the result of the function that is called via cli args
     // Use Some operator for Option
     let result = if let Some(path) = args.upload {
         // Upload
-        transfer::upload_file(&path, &args.ip).await
+        transfer::upload_file(&path, &ip).await
     } else if let Some(path) = args.download {
         // Download
-        transfer::download_file(&path, &args.ip).await
+        transfer::download_file(&path, &ip).await
     } else {
         // List
         Ok(())
