@@ -1,9 +1,9 @@
 //! Client Config Struct
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 // Config Struct
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(default)] // to only fill missing blanks
 pub struct ClientConfig {
     pub ip: String,
@@ -31,11 +31,14 @@ impl ClientConfig {
             Err(_) => {
                 eprintln!("Config file not found.");
                 eprintln!("Creating a new one...");
-                
+
                 let default_config = Self::default();
-                
-                // create new TOML file (CS)
-                // if let () 
+
+                // create new TOML file
+                if let Ok(config_output) = toml::to_string_pretty(&default_config) {
+                    let _ = std::fs::write("config.toml", config_output);
+                    eprintln!("config.toml has been created!")
+                }
 
                 return default_config;
             }

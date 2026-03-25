@@ -3,9 +3,9 @@ use clap::Parser;
 use crate::cli::Args;
 
 mod cli;
+mod config;
 mod transfer;
 mod ui;
-mod config;
 
 // Start tokio engine
 #[tokio::main]
@@ -18,8 +18,6 @@ async fn main() {
 
     // See if CLI argument was passed otherwise use config
     let ip = args.ip.unwrap_or_else(|| config.address());
-
-    println!("{ip}");
 
     // Handle CLI arguments
 
