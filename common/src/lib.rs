@@ -20,6 +20,16 @@ pub struct FileHeader {
     pub hash: String, // hex string
 }
 
+#[derive(Serialize,Deserialize,Debug)]
+pub enum Node{
+    File{
+        name: String,
+    },
+    Directory{
+        name: String,
+        child: Vec<Node>,
+    },
+}
 // Error Type Struct for wrapping errors
 #[derive(Error, Debug)]
 pub enum VeriflowError {
