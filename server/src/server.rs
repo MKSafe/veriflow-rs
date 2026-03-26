@@ -24,7 +24,7 @@ impl Listener {
     ///
     /// #Examples
     /// ```
-    /// async fn some_func() -> std::io::Result<()>{
+    /// async fn some_func() -> common::Result<()> {
     ///     use server::server::Listener;
     ///     let listener = Listener::new("127.0.0.1","0").await?;
     ///     Ok(())
@@ -50,7 +50,7 @@ impl Listener {
     ///
     /// #Examples
     /// ```
-    /// async fn some_func() -> std::io::Result<()>{
+    /// async fn some_func() -> common::Result<()> {
     ///     use server::server::Listener;
     ///     let mut listener = Listener::new("x.x.x.x","xxxx").await?;
     ///     listener.listen("directory of the resources you want to share".to_string()).await?;
