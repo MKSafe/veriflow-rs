@@ -27,7 +27,7 @@ impl ProtocolConnection {
     /// # Examples
     ///
     /// ```
-    /// async fn some_func() -> std::io::Result<()> {
+    /// async fn some_func() -> Result<(), common::VeriflowError> {
     ///     use common::protocol::ProtocolConnection;
     ///     use tokio::net::TcpStream;
     ///     let stream = TcpStream::connect("127.0.0.1").await?;
