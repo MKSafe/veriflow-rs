@@ -1,7 +1,7 @@
 use server::server::Listener;
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> common::Result<()> {
     const FILE_PATH: &str = "../Veriflow/resources/";
     let path_exists = tokio::fs::try_exists(FILE_PATH).await?;
     if !path_exists {

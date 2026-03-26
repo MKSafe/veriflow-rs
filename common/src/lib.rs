@@ -38,6 +38,10 @@ pub enum VeriflowError {
     // Hash Mismatch Error
     #[error("Hash Mismatch: The downloaded file was corrupted")]
     HashMismatch,
+
+    // Giant Header Error
+    #[error("Security Alert: Requested header size {0} bytes exceeds the limit.")]
+    HeaderSizeExceeded(usize),
 }
 
 // Allow writing Result<String> instead of Result<String, VeriflowError>

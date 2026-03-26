@@ -2,7 +2,6 @@ use common::hashing;
 use common::protocol::ProtocolConnection;
 use common::Command;
 use common::FileHeader;
-use std::io;
 use std::path::Path;
 use tokio::fs;
 use tokio::fs::File;
@@ -31,7 +30,7 @@ impl Listener {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn new(host: &str, port: &str) -> io::Result<Listener> {
+    pub async fn new(host: &str, port: &str) -> common::Result<Listener> {
         //When the host or the port is not present run the server on the local host
         if host.is_empty() || port.is_empty() {
             let listener = TcpListener::bind("0.0.0.0:8080").await?;
@@ -58,7 +57,7 @@ impl Listener {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn listen(&mut self, path: String) -> io::Result<()> {
+    pub async fn listen(&mut self, path: String) -> common::Result<()> {
         //infitnite loop this will act as the servers main loop
         loop {
             //The listener.accept() function can possibly throw an error so we handle it using the match keyword
@@ -69,7 +68,11 @@ impl Listener {
                     let connection = ProtocolConnection::new(_stream).await?;
                     let dir = path.clone();
                     tokio::spawn(async move {
-                        let _ = Self::handle_client(connection, dir).await;
+                        // Handle connection
+                        // Open the result to log errors
+                        if let Err(e) = Self::handle_client(connection, dir).await {
+                            error!("Connection with {addr} terminated: \n{e}");
+                        }
                     });
                 }
 
@@ -164,7 +167,7 @@ impl Listener {
     /// # Returns
     ///
     /// A 'TcpStream' representing the connection
-    pub async fn accept_once(&mut self) -> io::Result<TcpStream> {
+    pub async fn accept_once(&mut self) -> common::Result<TcpStream> {
         //test only method that accepts a single tcp stream
         let (stream, _) = self.listener.accept().await?;
         Ok(stream)
