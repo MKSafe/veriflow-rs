@@ -9,6 +9,7 @@ use thiserror::Error;
 pub enum Command {
     Upload,   // Upload file
     Download, // Download file
+    Delete,   // Delete file
     List,     // Lists the directories from server's resource folder
 }
 
