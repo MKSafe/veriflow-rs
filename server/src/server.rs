@@ -95,9 +95,8 @@ impl Listener {
         connection: ProtocolConnection,
         path: String,
     ) -> common::Result<()> {
-        Self::read_directory(path).await?;
         let operation = &header.command;
-        /*(match operation {
+        match operation {
             Command::Upload => {
                 Self::handle_upload(header, connection, path).await?;
             }
@@ -107,7 +106,7 @@ impl Listener {
             Command::List => {
                 Self::handle_list(connection, path).await?;
             }
-        }*/
+        }
         Ok(())
     }
     ///Handles clients' upload operation
@@ -157,29 +156,35 @@ impl Listener {
         Ok(())
     }
 
-    async fn read_directory(path: String) -> io::Result<()>{
-        let mut stack = vec![path];
-
-        while let Some(path) = stack.pop() {
-            let mut dir = fs::read_dir(&path).await?;
-            while let Some(entry) = dir.next_entry().await? {
-                let path_type = entry.file_type().await?;
+    async fn handle_list(mut connection: ProtocolConnection, path: String) -> io::Result<()> {
+        let mut stack = vec![path.clone()];
+        let mut path_list = vec![];
+        while let Some(dir) = stack.pop(){
+            path_list.push(dir.clone());
+            let mut dir_content = fs::read_dir(dir).await?;
+            while let Some(entry) = dir_content.next_entry().await?{
+                let file_type = entry.file_type().await?;
                 let entry_path = entry.path();
+                
+                let name = entry_path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "unknown".to_string());
 
-                if path_type.is_file() {
-                    println!("File: {:?}", entry_path);
+                if file_type.is_file(){
+                    info!("File: {:?}",name.clone());
+                    path_list.push(name);
                 }
 
-                if path_type.is_dir(){
-                    stack.push(entry_path.to_string_lossy().into_owned());
-                    println!("Dir: {:?}", entry_path);
+                else if file_type.is_dir(){
+                    info!("Dir: {:?}",name.clone());
+                    stack.push(name);
                 }
+
             }
         }
-        Ok(())
-    }
-    async fn handle_list(mut connection: ProtocolConnection, path: String) -> io::Result<()> {
-        Self::read_directory(path).await?;
+
+
         Ok(())
     }
     ///Accept a single tcp connection
