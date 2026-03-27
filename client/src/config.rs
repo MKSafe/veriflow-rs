@@ -1,0 +1,62 @@
+//! Client Config Struct
+
+use serde::{Deserialize, Serialize};
+
+// Config Struct
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(default)] // to only fill missing blanks
+pub struct ClientConfig {
+    pub ip: String,
+    pub port: String,
+    pub download_dir: String,
+}
+
+// Skeleton for the config file
+impl Default for ClientConfig {
+    fn default() -> Self {
+        Self {
+            ip: String::from("127.0.0.1"),
+            port: String::from("8080"),
+            download_dir: String::from("../Veriflow/Downloads"),
+        }
+    }
+}
+
+impl ClientConfig {
+    pub fn load() -> Self {
+        // Attempt to read the file
+        let config_str = match std::fs::read_to_string("config.toml") {
+            Ok(content) => content,
+            // Cant read file / no file found
+            Err(_) => {
+                eprintln!("Config file not found.");
+                eprintln!("Creating a new one...");
+
+                let default_config = Self::default();
+
+                // create new TOML file
+                if let Ok(config_output) = toml::to_string_pretty(&default_config) {
+                    let _ = std::fs::write("config.toml", config_output);
+                    eprintln!("config.toml has been created!")
+                }
+
+                return default_config;
+            }
+        };
+
+        // Parse the TOML
+        match toml::from_str(&config_str) {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("Config Error: {e}.");
+                eprintln!("Using default settings...");
+                Self::default()
+            }
+        }
+    }
+
+    // Helper function for full address (ip + port)
+    pub fn address(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
+    }
+}
