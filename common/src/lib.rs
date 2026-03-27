@@ -39,6 +39,10 @@ pub enum VeriflowError {
     #[error("Hash Mismatch: The downloaded file was corrupted")]
     HashMismatch,
 
+    // Giant Header Error
+    #[error("Security Alert: Requested header size {0} bytes exceeds the limit.")]
+    HeaderSizeExceeded(usize),
+
     //TOML Error
     #[error("Serialisation Error: {0}")]
     TOMLser(#[from] toml::ser::Error),

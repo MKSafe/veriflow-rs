@@ -1,4 +1,5 @@
-use std::{cmp, io};
+use crate::{Result, VeriflowError};
+use std::cmp;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -6,6 +7,9 @@ use tokio::net::TcpStream;
 // convention: 4096B or 8192B
 // Buffer size of 8kb for TCP
 pub const BUFFER_SIZE: usize = 4096;
+
+// Header size (max 4kb)
+pub const MAX_HEADER_SIZE: usize = 4096;
 
 ///Represents the custom Protocol read and send methods built on top of Tcp
 pub struct ProtocolConnection {
@@ -23,7 +27,7 @@ impl ProtocolConnection {
     /// # Examples
     ///
     /// ```
-    /// async fn some_func() -> std::io::Result<()> {
+    /// async fn some_func() -> Result<(), common::VeriflowError> {
     ///     use common::protocol::ProtocolConnection;
     ///     use tokio::net::TcpStream;
     ///     let stream = TcpStream::connect("127.0.0.1").await?;
@@ -31,7 +35,7 @@ impl ProtocolConnection {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn new(stream: TcpStream) -> io::Result<ProtocolConnection> {
+    pub async fn new(stream: TcpStream) -> Result<ProtocolConnection> {
         //returns a new connection object
         Ok(ProtocolConnection { stream })
     }
@@ -43,7 +47,7 @@ impl ProtocolConnection {
     ///
     /// # Returns
     /// A 'bool' value to represent if the send function succeeded
-    pub async fn send_header(&mut self, header: &str) -> io::Result<()> {
+    pub async fn send_header(&mut self, header: &str) -> Result<()> {
         //turns data into bytes and gets the length
         let data_as_bytes = header.as_bytes();
         let data_byte_len = data_as_bytes.len() as u32;
@@ -66,15 +70,16 @@ impl ProtocolConnection {
     ///  
     /// # Returns
     /// A generic Result indicating success or failure
-    pub async fn send_data(&mut self, buffer: &[u8]) -> io::Result<()> {
-        self.stream.write_all(buffer).await
+    pub async fn send_data(&mut self, buffer: &[u8]) -> Result<()> {
+        self.stream.write_all(buffer).await?;
+        Ok(())
     }
 
     ///Reads the prefixed length of the header
     ///
     /// #Returns
     /// A 'Result' of usize representing the size of the incoming header
-    pub async fn read_prefix(&mut self) -> io::Result<usize> {
+    pub async fn read_prefix(&mut self) -> Result<usize> {
         //creates the prefix buffer
         let mut buf: [u8; 4] = [0u8; 4];
         self.stream.read_exact(&mut buf).await?;
@@ -88,19 +93,21 @@ impl ProtocolConnection {
     ///
     /// # Returns
     /// A 'Result' of 'Vec<u8>' which is the data received through the connection stream
-    pub async fn read_body(&mut self, buffer_len: usize) -> io::Result<Vec<u8>> {
+    pub async fn read_body(&mut self, buffer_len: usize) -> Result<Vec<u8>> {
+        // Verifies max header size before creating buffer
+        if buffer_len > MAX_HEADER_SIZE {
+            return Err(VeriflowError::HeaderSizeExceeded(buffer_len));
+        }
+
         //creates a buffer for a custom size
         let mut buf = vec![0u8; buffer_len];
+
         self.stream.read_exact(&mut buf).await?;
 
         Ok(buf)
     }
 
-    pub async fn write_file_to_stream(
-        &mut self,
-        input: &mut File,
-        file_size: u64,
-    ) -> io::Result<()> {
+    pub async fn write_file_to_stream(&mut self, input: &mut File, file_size: u64) -> Result<()> {
         let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
         let mut total_bytes_read: u64 = 0;
 
@@ -119,7 +126,7 @@ impl ProtocolConnection {
     }
 
     /// Streams a file to disk from the network
-    pub async fn read_file_to_disk(&mut self, output: &mut File, file_size: u64) -> io::Result<()> {
+    pub async fn read_file_to_disk(&mut self, output: &mut File, file_size: u64) -> Result<()> {
         // Buffer
         let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
         let mut total_bytes_read: u64 = 0;
