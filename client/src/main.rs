@@ -1,6 +1,7 @@
 use clap::Parser;
 
-use crate::cli::Args;
+use crate::cli::{Args, Commands};
+use common::VeriflowError;
 
 mod cli;
 mod config;
@@ -9,41 +10,58 @@ mod ui;
 
 // Start tokio engine
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), VeriflowError> {
     // Parse CLI arguments
     let args = Args::parse();
 
     // Load config
-    let config = config::ClientConfig::load();
-
-    // See if CLI argument was passed otherwise use config
-    let ip = args.ip.unwrap_or_else(|| config.address());
+    let mut config = config::ClientConfig::load();
 
     // Handle CLI arguments
+    match args.command {
+        // Config
+        Commands::Config { ip, port, dir } => {
+            if let Some(new_ip) = ip {
+                config.ip = new_ip;
+            }
+            if let Some(new_port) = port {
+                config.port = new_port;
+            }
+            if let Some(new_dir) = dir {
+                config.download_dir = new_dir;
+            }
 
-    // Get the result of the function that is called via cli args
-    // Use Some operator for Option
-    let result = if let Some(path) = args.upload {
-        // Upload
-        transfer::upload_file(&path, &ip).await
-    } else if let Some(path) = args.download {
-        // Download
-        transfer::download_file(&path, &ip).await
-    } else {
-        // List
-        Ok(())
-    };
+            config.save()?;
+            println!("Configuration saved.")
+        }
 
-    // Global Error Handler
-    match result {
-        // Success
-        Ok(_) => {
+        // Transfer
+        Commands::Transfer {
+            ip,
+            upload,
+            download,
+            delete,
+            list: _,
+        } => {
+            // See if CLI argument was passed otherwise use config
+            let target_ip = ip.unwrap_or_else(|| config.address());
+
+            // Let the result of the function that is called via cli args be handled by VeriflowError
+            // Use Some operator for Option
+            if let Some(path) = upload {
+                // Upload
+                transfer::upload_file(&path, &target_ip).await?;
+            } else if let Some(path) = download {
+                // Download
+                transfer::download_file(&path, &target_ip).await?;
+            } else if let Some(_path) = delete {
+                // Delete CS
+            } else {
+                // List CS
+            };
+
             println!("Success!");
         }
-
-        // Handle error
-        Err(e) => {
-            eprintln!("{e}");
-        }
     }
+    Ok(())
 }
