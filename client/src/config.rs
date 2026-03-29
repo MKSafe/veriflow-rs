@@ -1,5 +1,6 @@
 //! Client Config Struct
 
+use common::VeriflowError;
 use serde::{Deserialize, Serialize};
 
 // Config Struct
@@ -34,11 +35,8 @@ impl ClientConfig {
 
                 let default_config = Self::default();
 
-                // create new TOML file
-                if let Ok(config_output) = toml::to_string_pretty(&default_config) {
-                    let _ = std::fs::write("config.toml", config_output);
-                    eprintln!("config.toml has been created!")
-                }
+                // create new config file
+                let _ = default_config.save();
 
                 return default_config;
             }
@@ -58,5 +56,13 @@ impl ClientConfig {
     // Helper function for full address (ip + port)
     pub fn address(&self) -> String {
         format!("{}:{}", self.ip, self.port)
+    }
+
+    pub fn save(&self) -> Result<(), VeriflowError> {
+        let toml_str = toml::to_string_pretty(self)?;
+
+        std::fs::write("config.toml", toml_str)?;
+
+        Ok(())
     }
 }
