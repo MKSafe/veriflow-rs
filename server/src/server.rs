@@ -157,7 +157,7 @@ impl Listener {
         Ok(())
     }
 
-    async fn handle_list(mut connection: ProtocolConnection, path: String) -> io::Result<()> {
+    async fn handle_list(mut connection: ProtocolConnection, path: String) -> common::Result<()> {
         let mut stack = vec![path.clone()];
         let mut path_list = vec![];
         while let Some(dir) = stack.pop(){
