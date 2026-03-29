@@ -67,11 +67,9 @@ impl Listener {
                     info!("User {} has connected.", addr,);
                     let connection = ProtocolConnection::new(_stream).await?;
                     let dir = path.clone();
-                    /*tokio::spawn(async move {
+                    tokio::spawn(async move {
                         let _ = Self::handle_client(connection, dir).await;
                     });
-                    */
-                    Self::handle_list(connection, dir).await?;
                 }
 
                 Err(e) => error!(
@@ -157,40 +155,38 @@ impl Listener {
         Ok(())
     }
 
+    ///Handles clients' list requests
     async fn handle_list(mut connection: ProtocolConnection, path: String) -> common::Result<()> {
         let mut stack = vec![path.clone()];
         let mut path_list = vec![];
-        while let Some(dir) = stack.pop(){
-            info!("{:?}",dir.clone());
+        while let Some(dir) = stack.pop() {
+            info!("{:?}", dir.clone());
             path_list.push(dir.clone());
             let mut dir_content = fs::read_dir(dir.clone()).await?;
-            while let Some(entry) = dir_content.next_entry().await?{
+            while let Some(entry) = dir_content.next_entry().await? {
                 let file_type = entry.file_type().await?;
                 let entry_path = entry.path();
-                
-                let name = entry_path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_else(|| "unknown".to_string());
 
-                if file_type.is_file(){
-                    info!("File: {:?}",name.clone());
+                let name = entry_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "unknown".to_string());
+
+                if file_type.is_file() {
+                    info!("File: {:?}", name.clone());
                     let path = dir.clone() + &name;
                     path_list.push(path);
-                }
-
-                else if file_type.is_dir(){
-                    info!("Dir: {:?}",name.clone());
+                } else if file_type.is_dir() {
+                    info!("Dir: {:?}", name.clone());
                     let path = dir.clone() + &name + &'/'.to_string();
                     stack.push(path);
                 }
-
             }
         }
-        info!("{:?}",path_list);
+        info!("{:?}", path_list);
         let payload = serde_json::to_vec(&path_list)?;
-        let payload_header = FileHeader{
-            command: Command::List, 
+        let payload_header = FileHeader {
+            command: Command::List,
             name: ' '.to_string(),
             size: payload.len() as u64,
             hash: ' '.to_string(),
