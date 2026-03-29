@@ -68,9 +68,11 @@ impl Listener {
                     info!("User {} has connected.", addr,);
                     let connection = ProtocolConnection::new(_stream).await?;
                     let dir = path.clone();
-                    tokio::spawn(async move {
+                    /*tokio::spawn(async move {
                         let _ = Self::handle_client(connection, dir).await;
                     });
+                    */
+                    Self::handle_list(connection, dir).await?;
                 }
 
                 Err(e) => error!(
@@ -160,8 +162,9 @@ impl Listener {
         let mut stack = vec![path.clone()];
         let mut path_list = vec![];
         while let Some(dir) = stack.pop(){
+            info!("{:?}",dir.clone());
             path_list.push(dir.clone());
-            let mut dir_content = fs::read_dir(dir).await?;
+            let mut dir_content = fs::read_dir(dir.clone()).await?;
             while let Some(entry) = dir_content.next_entry().await?{
                 let file_type = entry.file_type().await?;
                 let entry_path = entry.path();
@@ -173,18 +176,29 @@ impl Listener {
 
                 if file_type.is_file(){
                     info!("File: {:?}",name.clone());
-                    path_list.push(name);
+                    let path = dir.clone() + &name;
+                    path_list.push(path);
                 }
 
                 else if file_type.is_dir(){
                     info!("Dir: {:?}",name.clone());
-                    stack.push(name);
+                    let path = dir.clone() + &name + &'/'.to_string();
+                    stack.push(path);
                 }
 
             }
         }
-
-
+        info!("{:?}",path_list);
+        let payload = serde_json::to_vec(&path_list)?;
+        let payload_header = FileHeader{
+            command: Command::List, 
+            name: ' '.to_string(),
+            size: payload.len() as u64,
+            hash: ' '.to_string(),
+        };
+        let str_header = serde_json::to_string(&payload_header)?;
+        connection.send_header(&str_header).await?;
+        connection.send_data(&payload).await?;
         Ok(())
     }
     ///Accept a single tcp connection
