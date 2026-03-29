@@ -67,11 +67,9 @@ impl Listener {
                     info!("User {} has connected.", addr,);
                     let connection = ProtocolConnection::new(_stream).await?;
                     let dir = path.clone();
-                    /*tokio::spawn(async move {
+                    tokio::spawn(async move {
                         let _ = Self::handle_client(connection, dir).await;
                     });
-                    */
-                    Self::handle_list(connection, dir).await?;
                 }
 
                 Err(e) => error!(
