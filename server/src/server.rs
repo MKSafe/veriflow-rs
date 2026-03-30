@@ -3,7 +3,6 @@ use common::hashing;
 use common::protocol::ProtocolConnection;
 use common::Command;
 use common::FileHeader;
-use tokio::fs::DirEntry;
 use tokio::fs::metadata;
 use std::io;
 use std::path;
@@ -124,14 +123,11 @@ impl Listener {
             Command::Download => {
                 Self::handle_download(header, connection, safe_path).await?;
             }
-            Command::Delete => {
-                // Handle delete
-            }
             Command::List => {
                 Self::handle_list(connection, safe_path).await?;
             }
             Command::Delete => {
-                Self::handle_delete(header,connection, safe_path).await?;
+                Self::handle_delete(connection, safe_path).await?;
             }
         }
         Ok(())
@@ -224,10 +220,31 @@ impl Listener {
         Ok(())
     }
     ///Handles a delete request
-    pub async fn handle_delete(header: &FileHeader,mut connection: ProtocolConnection, path : PathBuf) -> common::Result<()>{
+    pub async fn handle_delete(mut connection: ProtocolConnection, path : PathBuf) -> common::Result<()>{
         let md = metadata(&path).await?;
         if md.is_dir(){
-            fs::remove_dir(path).await?;
+            match fs::remove_dir_all(path).await {
+                Ok(()) =>{
+                    let header = FileHeader{
+                        command: Command::Delete,
+                        name: "Success".to_string(),
+                        size: 0,
+                        hash: ' '.to_string(),
+                    };
+                    let str_header = serde_json::to_string(&header)?;
+                    connection.send_header(&str_header).await?;
+                }
+                Err(e)=>{
+                     let header = FileHeader{
+                        command: Command::Delete,
+                        name: format!("Failed with error {e}").to_string(),
+                        size: 0,
+                        hash: ' '.to_string(),
+                    };
+                    let str_header = serde_json::to_string(&header)?;
+                    connection.send_header(&str_header).await?;
+                }
+            }
         }
         else if(md.is_file()){
             fs::remove_file(path).await?;
