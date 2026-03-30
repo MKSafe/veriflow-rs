@@ -1,13 +1,13 @@
-use common::VeriflowError;
 use common::hashing;
 use common::protocol::ProtocolConnection;
 use common::Command;
 use common::FileHeader;
-use tokio::fs::metadata;
+use common::VeriflowError;
 use std::io;
 use std::path;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
+use tokio::fs::metadata;
 use tokio::fs::File;
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, info};
@@ -84,7 +84,10 @@ impl Listener {
         }
     }
     ///Used to concurrently handle clients
-    async fn handle_client(mut connection: ProtocolConnection, path: PathBuf) -> common::Result<()> {
+    async fn handle_client(
+        mut connection: ProtocolConnection,
+        path: PathBuf,
+    ) -> common::Result<()> {
         let prefix_len = connection.read_prefix().await?;
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
@@ -92,17 +95,23 @@ impl Listener {
         Self::handle_operation(&file_header, connection, path).await?;
         Ok(())
     }
-    async fn safe_join(base : &Path ,user_input: &str) -> common::Result<path::PathBuf>{
+    async fn safe_join(base: &Path, user_input: &str) -> common::Result<path::PathBuf> {
         let path = Path::new(user_input);
-        if user_input.is_empty(){
+        if user_input.is_empty() {
             return Ok(base.to_path_buf());
         }
-        if path.is_absolute(){
-            return Err(VeriflowError::Io(io::Error::new(io::ErrorKind::PermissionDenied,"Absolute path not allowed")));
+        if path.is_absolute() {
+            return Err(VeriflowError::Io(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "Absolute path not allowed",
+            )));
         }
-        for comp in path.components(){
-            if matches!(comp, Component::ParentDir){
-                return Err(VeriflowError::Io(io::Error::new(io::ErrorKind::PermissionDenied, "Path traversal detected")));
+        for comp in path.components() {
+            if matches!(comp, Component::ParentDir) {
+                return Err(VeriflowError::Io(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "Path traversal detected",
+                )));
             }
         }
         Ok(base.join(path))
@@ -146,8 +155,24 @@ impl Listener {
         if header.hash != received_file_hash {
             fs::remove_file(path).await?;
             error!("There has been an error when comparing the expected hash to the calculated hash retry sending the file");
+            let header = FileHeader {
+                command: Command::Upload,
+                name: "Failure hash does not match".to_string(),
+                size: 0,
+                hash: ' '.to_string(),
+            };
+            let str_header = serde_json::to_string(&header)?;
+            connection.send_header(&str_header).await?;
         } else {
             info!("File successfuly received");
+            let header = FileHeader {
+                command: Command::Delete,
+                name: "Success".to_string(),
+                size: 0,
+                hash: ' '.to_string(),
+            };
+            let str_header = serde_json::to_string(&header)?;
+            connection.send_header(&str_header).await?;
         }
         Ok(())
     }
@@ -177,7 +202,7 @@ impl Listener {
     }
 
     ///Handles a list command request
-    /// 
+    ///
     /// No return but it walks the resource directory and sends its contents together with the subdirectories to the client
     async fn handle_list(mut connection: ProtocolConnection, path: PathBuf) -> common::Result<()> {
         let mut stack = vec![path.clone()];
@@ -220,12 +245,15 @@ impl Listener {
         Ok(())
     }
     ///Handles a delete request
-    pub async fn handle_delete(mut connection: ProtocolConnection, path : PathBuf) -> common::Result<()>{
+    pub async fn handle_delete(
+        mut connection: ProtocolConnection,
+        path: PathBuf,
+    ) -> common::Result<()> {
         let md = metadata(&path).await?;
-        if md.is_dir(){
+        if md.is_dir() {
             match fs::remove_dir_all(path).await {
-                Ok(()) =>{
-                    let header = FileHeader{
+                Ok(()) => {
+                    let header = FileHeader {
                         command: Command::Delete,
                         name: "Success".to_string(),
                         size: 0,
@@ -234,8 +262,31 @@ impl Listener {
                     let str_header = serde_json::to_string(&header)?;
                     connection.send_header(&str_header).await?;
                 }
-                Err(e)=>{
-                     let header = FileHeader{
+                Err(e) => {
+                    let header = FileHeader {
+                        command: Command::Delete,
+                        name: format!("Failed with error {e}").to_string(),
+                        size: 0,
+                        hash: ' '.to_string(),
+                    };
+                    let str_header = serde_json::to_string(&header)?;
+                    connection.send_header(&str_header).await?;
+                }
+            }
+        } else if (md.is_file()) {
+            match fs::remove_file(path).await {
+                Ok(()) => {
+                    let header = FileHeader {
+                        command: Command::Delete,
+                        name: "Success".to_string(),
+                        size: 0,
+                        hash: ' '.to_string(),
+                    };
+                    let str_header = serde_json::to_string(&header)?;
+                    connection.send_header(&str_header).await?;
+                }
+                Err(e) => {
+                    let header = FileHeader {
                         command: Command::Delete,
                         name: format!("Failed with error {e}").to_string(),
                         size: 0,
@@ -246,31 +297,7 @@ impl Listener {
                 }
             }
         }
-        else if(md.is_file()){
-            match fs::remove_file(path).await {
-            Ok(()) =>{
-                let header = FileHeader {
-                    command: Command::Delete,
-                    name: "Success".to_string(),
-                    size: 0,
-                    hash: ' '.to_string(),
-                };
-                let str_header = serde_json::to_string(&header)?;
-                connection.send_header(&str_header).await?;
-            }
-            Err(e)=>{
-                    let header = FileHeader {
-                    command: Command::Delete,
-                    name: format!("Failed with error {e}").to_string(),
-                    size: 0,
-                    hash: ' '.to_string(),
-                    };
-                    let str_header = serde_json::to_string(&header)?;
-                    connection.send_header(&str_header).await?;
-                }
-            }
-        }
-        
+
         Ok(())
     }
     ///Accept a single tcp connection
