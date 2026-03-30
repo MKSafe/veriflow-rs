@@ -28,7 +28,7 @@ async fn main() -> Result<(), VeriflowError> {
                 config.port = new_port;
             }
             if let Some(new_dir) = dir {
-                config.download_dir = new_dir;
+                config.download_dir = new_dir.into();
             }
 
             config.save()?;
@@ -41,7 +41,7 @@ async fn main() -> Result<(), VeriflowError> {
             upload,
             download,
             delete,
-            list: _,
+            list,
         } => {
             // See if CLI argument was passed otherwise use config
             let target_ip = ip.unwrap_or_else(|| config.address());
@@ -53,11 +53,13 @@ async fn main() -> Result<(), VeriflowError> {
                 transfer::upload_file(&path, &target_ip).await?;
             } else if let Some(path) = download {
                 // Download
-                transfer::download_file(&path, &target_ip).await?;
-            } else if let Some(_path) = delete {
-                // Delete CS
-            } else {
-                // List CS
+                transfer::download_file(&path, &target_ip, &config.download_dir).await?;
+            } else if let Some(path) = delete {
+                // Delete
+                transfer::delete_file(&path, &target_ip).await?;
+            } else if list {
+                // List
+                transfer::list_files(&target_ip).await?;
             };
 
             println!("Success!");

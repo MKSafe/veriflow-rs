@@ -9,6 +9,7 @@ use thiserror::Error;
 pub enum Command {
     Upload,   // Upload file
     Download, // Download file
+    Delete,   // Delete file
     List,     // Lists the directories from server's resource folder
 }
 
@@ -42,6 +43,10 @@ pub enum VeriflowError {
     // Giant Header Error
     #[error("Security Alert: Requested header size {0} bytes exceeds the limit.")]
     HeaderSizeExceeded(usize),
+
+    // Giant Payload Error
+    #[error("Security Alert: Requested payload size {0} bytes exceeds the limit.")]
+    PayloadSizeExceeded(usize),
 
     //TOML Error
     #[error("Serialisation Error: {0}")]

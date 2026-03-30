@@ -2,6 +2,7 @@
 
 use common::VeriflowError;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 // Config Struct
 #[derive(Serialize, Deserialize, Debug)]
@@ -9,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct ClientConfig {
     pub ip: String,
     pub port: String,
-    pub download_dir: String,
+    pub download_dir: PathBuf,
 }
 
 // Skeleton for the config file
@@ -18,7 +19,7 @@ impl Default for ClientConfig {
         Self {
             ip: String::from("127.0.0.1"),
             port: String::from("8080"),
-            download_dir: String::from("../Veriflow/Downloads"),
+            download_dir: PathBuf::from("../Veriflow/Downloads"),
         }
     }
 }

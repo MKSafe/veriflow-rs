@@ -21,4 +21,5 @@ target
 #.idea/
 
 # config files
-config.toml
+*config.toml
+**/config.toml
