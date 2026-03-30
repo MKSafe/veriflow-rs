@@ -1,6 +1,0 @@
-[network]
-ip = "0.0.0.0"
-port = "8080"
-
-[directory]
-path = "../Veriflow/resources/"
