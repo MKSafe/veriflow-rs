@@ -106,7 +106,7 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
 }
 
 /// Download from Server
-pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
+pub async fn download_file(path: &Path, ip: &str, download_dir: &Path) -> common::Result<()> {
     // Connect to server
     println!("Connecting to {ip}...");
 
@@ -155,7 +155,6 @@ pub async fn download_file(path: &Path, ip: &str) -> common::Result<()> {
     // Downloading to disk
 
     // Ensure download dir exists
-    let download_dir = Path::new("../Veriflow/Downloads");
     tokio::fs::create_dir_all(download_dir).await?;
     // combine into a single valid path
     let full_download_path = download_dir.join(file_name);

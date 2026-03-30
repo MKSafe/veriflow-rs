@@ -28,7 +28,7 @@ async fn main() -> Result<(), VeriflowError> {
                 config.port = new_port;
             }
             if let Some(new_dir) = dir {
-                config.download_dir = new_dir;
+                config.download_dir = new_dir.into();
             }
 
             config.save()?;
@@ -53,7 +53,7 @@ async fn main() -> Result<(), VeriflowError> {
                 transfer::upload_file(&path, &target_ip).await?;
             } else if let Some(path) = download {
                 // Download
-                transfer::download_file(&path, &target_ip).await?;
+                transfer::download_file(&path, &target_ip, &config.download_dir).await?;
             } else if let Some(path) = delete {
                 // Delete
                 transfer::delete_file(&path, &target_ip).await?;

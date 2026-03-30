@@ -102,6 +102,9 @@ impl Listener {
             Command::Download => {
                 Self::handle_download(header, connection, path).await?;
             }
+            Command::Delete => {
+                // Handle delete
+            }
             Command::List => {
                 Self::handle_list(connection, path).await?;
             }

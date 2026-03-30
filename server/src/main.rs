@@ -12,7 +12,7 @@ async fn main() -> common::Result<()> {
         }
         let config_content: Config = Config {
             network: (Network {
-                ip: "0.0.0.0".to_string(),
+                ip: "127.0.0.1".to_string(),
                 port: "8080".to_string(),
             }),
             directory: (Directory {
