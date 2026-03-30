@@ -10,6 +10,10 @@ use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 
+// comfy table
+use comfy_table::presets::NOTHING;
+use comfy_table::Table;
+
 /// Upload to Server
 pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
     // Offline Logic (Validation)
@@ -101,6 +105,19 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
 
     // finish progress bar
     progress_bar.finish_with_message("Upload Complete!");
+
+    // wait for server response that the file has been successfully uploaded
+    println!("Waiting for server confirmation...");
+    // get prefix
+    let prefix_len = connection.read_prefix().await?;
+    // get JSON bytes from stream
+    let header: Vec<u8> = connection.read_body(prefix_len).await?;
+    // convert bytes into UTF-8 string
+    let string_header = String::from_utf8_lossy(&header);
+    // parse the JSON string back into a fileheader
+    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+
+    println!("{}", file_header.name);
 
     Ok(())
 }
@@ -230,7 +247,17 @@ pub async fn delete_file(path: &Path, ip: &str) -> common::Result<()> {
     // send header via helper
     connection.send_header(&header_json).await?;
 
-    // CS: wait for server response
+    // wait for server response
+    // get prefix
+    let prefix_len = connection.read_prefix().await?;
+    // get JSON bytes from stream
+    let header: Vec<u8> = connection.read_body(prefix_len).await?;
+    // convert bytes into UTF-8 string
+    let string_header = String::from_utf8_lossy(&header);
+    // parse the JSON string back into a fileheader
+    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+
+    println!("{}", file_header.name);
 
     Ok(())
 }
@@ -263,8 +290,60 @@ pub async fn list_files(ip: &str) -> common::Result<()> {
     // send header via helper
     connection.send_header(&header_json).await?;
 
-    // CS: wait for server response
-    // CS: output file tree
+    // wait for server response
+    // get prefix
+    let prefix_len = connection.read_prefix().await?;
+    // get JSON bytes from stream
+    let header: Vec<u8> = connection.read_body(prefix_len).await?;
+    // convert bytes into UTF-8 string
+    let string_header = String::from_utf8_lossy(&header);
+    // parse the JSON string back into a fileheader
+    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+
+    // get size
+    let received_size = file_header.size as usize;
+
+    // read payload (one-shot)
+    let payload_bytes = connection.read_payload(received_size).await?;
+
+    // deserialise into Vec<String>
+    let path_list: Vec<String> = serde_json::from_slice(&payload_bytes)?;
+
+    // output file tree
+    let mut table = Table::new();
+    table
+        .load_preset(NOTHING)
+        .set_header(vec!["#", "Type", "Path"]);
+
+    // manual counter
+    let mut display_id = 1;
+
+    for path in &path_list {
+        let is_dir = path.ends_with("/");
+
+        // filter for empty directories (no other path in the list)
+        if is_dir {
+            let has_children = path_list
+                .iter()
+                .any(|other| other != path && other.starts_with(path));
+
+            if has_children {
+                continue; // skip directories that contain anything
+            }
+        }
+
+        let type_of = if is_dir { "DIR" } else { "FILE" };
+
+        table.add_row(vec![
+            display_id.to_string(),
+            type_of.to_string(),
+            path.to_string(),
+        ]);
+
+        display_id += 1;
+    }
+
+    println!("\n{table}\n");
 
     Ok(())
 }

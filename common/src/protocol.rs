@@ -11,6 +11,9 @@ pub const BUFFER_SIZE: usize = 4096;
 // Header size (max 4kb)
 pub const MAX_HEADER_SIZE: usize = 4096;
 
+// Max one-shot payload (max 10mb)
+pub const MAX_PAYLOAD_SIZE: usize = 10485760;
+
 ///Represents the custom Protocol read and send methods built on top of Tcp
 pub struct ProtocolConnection {
     stream: TcpStream,
@@ -102,6 +105,19 @@ impl ProtocolConnection {
         //creates a buffer for a custom size
         let mut buf = vec![0u8; buffer_len];
 
+        self.stream.read_exact(&mut buf).await?;
+
+        Ok(buf)
+    }
+
+    /// Read entire payload into memory
+    pub async fn read_payload(&mut self, payload_len: usize) -> Result<Vec<u8>> {
+        if payload_len > MAX_PAYLOAD_SIZE {
+            return Err(VeriflowError::PayloadSizeExceeded(payload_len));
+        }
+
+        // Read payload (one-shot)
+        let mut buf = vec![0u8; payload_len];
         self.stream.read_exact(&mut buf).await?;
 
         Ok(buf)
