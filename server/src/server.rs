@@ -151,7 +151,7 @@ impl Listener {
         connection
             .read_file_to_disk(&mut received_file, header.size)
             .await?;
-        let received_file_hash = hashing::hash_file(&path.as_path(), |_| {}).await?;
+        let received_file_hash = hashing::hash_file(path.as_path(), |_| {}).await?;
         if header.hash != received_file_hash {
             fs::remove_file(path).await?;
             error!("There has been an error when comparing the expected hash to the calculated hash retry sending the file");
@@ -186,7 +186,7 @@ impl Listener {
         let mut file_to_send = File::open(&path.as_path()).await?;
         let file_meta_data = fs::metadata(&path.as_path()).await?;
         let file_size = file_meta_data.len();
-        let file_hash = hashing::hash_file(&path.as_path(), |_| {}).await?; // use saved .sha256 sidecar file in future
+        let file_hash = hashing::hash_file(path.as_path(), |_| {}).await?; // use saved .sha256 sidecar file in future
         let file_header = FileHeader {
             command: Command::Upload,
             name: filename,
