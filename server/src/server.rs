@@ -214,13 +214,9 @@ impl Listener {
                 let entry_path = entry.path();
 
                 if file_type.is_file() {
-                    let relative = entry_path
-                        .strip_prefix(&path)
-                        .unwrap_or(&entry_path);
+                    let relative = entry_path.strip_prefix(&path).unwrap_or(&entry_path);
 
-                    let str_path = relative
-                        .to_string_lossy()
-                        .replace("\\", "/");
+                    let str_path = relative.to_string_lossy().replace("\\", "/");
                     path_list.push(str_path);
                 } else if file_type.is_dir() {
                     stack.push(entry_path);
@@ -245,7 +241,7 @@ impl Listener {
         mut connection: ProtocolConnection,
         path: PathBuf,
     ) -> common::Result<()> {
-        info!("{:?}",&path);
+        info!("{:?}", &path);
         let md = metadata(&path).await?;
         if md.is_dir() {
             match fs::remove_dir_all(path.as_path()).await {
