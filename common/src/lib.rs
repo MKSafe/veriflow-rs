@@ -10,6 +10,7 @@ pub enum Command {
     Upload,   // Upload file
     Download, // Download file
     List,     // Lists the directories from server's resource folder
+    Delete, // Deletes a file from the server
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
