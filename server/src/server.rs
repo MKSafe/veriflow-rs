@@ -247,7 +247,28 @@ impl Listener {
             }
         }
         else if(md.is_file()){
-            fs::remove_file(path).await?;
+            match fs::remove_file(path).await {
+            Ok(()) =>{
+                let header = FileHeader {
+                    command: Command::Delete,
+                    name: "Success".to_string(),
+                    size: 0,
+                    hash: ' '.to_string(),
+                };
+                let str_header = serde_json::to_string(&header)?;
+                connection.send_header(&str_header).await?;
+            }
+            Err(e)=>{
+                    let header = FileHeader {
+                    command: Command::Delete,
+                    name: format!("Failed with error {e}").to_string(),
+                    size: 0,
+                    hash: ' '.to_string(),
+                    };
+                    let str_header = serde_json::to_string(&header)?;
+                    connection.send_header(&str_header).await?;
+                }
+            }
         }
         
         Ok(())
