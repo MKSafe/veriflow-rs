@@ -123,7 +123,7 @@ impl Listener {
         path: PathBuf,
     ) -> common::Result<()> {
         let operation = &header.command;
-        let path_var = Path::new(&path);
+        let path_var = path.as_path();
         let safe_path = Self::safe_join(path_var, &header.name).await?;
         match operation {
             Command::Upload => {
@@ -147,11 +147,11 @@ impl Listener {
         mut connection: ProtocolConnection,
         path: PathBuf,
     ) -> common::Result<()> {
-        let mut received_file = File::create(&path).await?;
+        let mut received_file = File::create(&path.as_path()).await?;
         connection
             .read_file_to_disk(&mut received_file, header.size)
             .await?;
-        let received_file_hash = hashing::hash_file(Path::new(&path), |_| {}).await?;
+        let received_file_hash = hashing::hash_file(&path.as_path(), |_| {}).await?;
         if header.hash != received_file_hash {
             fs::remove_file(path).await?;
             error!("There has been an error when comparing the expected hash to the calculated hash retry sending the file");
@@ -176,17 +176,17 @@ impl Listener {
         }
         Ok(())
     }
-    ///Handles a clients download request
+    ///Handles a clients' download request
     async fn handle_download(
         header: &FileHeader,
         mut connection: ProtocolConnection,
         path: PathBuf,
     ) -> common::Result<()> {
         let filename: String = header.name.clone();
-        let mut file_to_send = File::open(&path).await?;
-        let file_meta_data = fs::metadata(&path).await?;
+        let mut file_to_send = File::open(&path.as_path()).await?;
+        let file_meta_data = fs::metadata(&path.as_path()).await?;
         let file_size = file_meta_data.len();
-        let file_hash = hashing::hash_file(Path::new(&path), |_| {}).await?; // use saved .sha256 sidecar file in future
+        let file_hash = hashing::hash_file(&path.as_path(), |_| {}).await?; // use saved .sha256 sidecar file in future
         let file_header = FileHeader {
             command: Command::Upload,
             name: filename,
@@ -208,26 +208,22 @@ impl Listener {
         let mut stack = vec![path.clone()];
         let mut path_list = vec![];
         while let Some(dir) = stack.pop() {
-            info!("{:?}", dir.clone());
-            path_list.push(dir.clone());
             let mut dir_content = fs::read_dir(dir.clone()).await?;
             while let Some(entry) = dir_content.next_entry().await? {
                 let file_type = entry.file_type().await?;
                 let entry_path = entry.path();
 
-                let name = entry_path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "unknown".to_string());
-
                 if file_type.is_file() {
-                    info!("File: {:?}", name.clone());
-                    let path = entry_path.join(&name);
-                    path_list.push(path);
+                    let relative = entry_path
+                        .strip_prefix(&path)
+                        .unwrap_or(&entry_path);
+
+                    let str_path = relative
+                        .to_string_lossy()
+                        .replace("\\", "/");
+                    path_list.push(str_path);
                 } else if file_type.is_dir() {
-                    info!("Dir: {:?}", name.clone());
-                    let path = entry_path.join(&name);
-                    stack.push(path);
+                    stack.push(entry_path);
                 }
             }
         }
@@ -249,9 +245,10 @@ impl Listener {
         mut connection: ProtocolConnection,
         path: PathBuf,
     ) -> common::Result<()> {
+        info!("{:?}",&path);
         let md = metadata(&path).await?;
         if md.is_dir() {
-            match fs::remove_dir_all(path).await {
+            match fs::remove_dir_all(path.as_path()).await {
                 Ok(()) => {
                     let header = FileHeader {
                         command: Command::Delete,
@@ -273,8 +270,8 @@ impl Listener {
                     connection.send_header(&str_header).await?;
                 }
             }
-        } else if (md.is_file()) {
-            match fs::remove_file(path).await {
+        } else if md.is_file() {
+            match fs::remove_file(path.as_path()).await {
                 Ok(()) => {
                     let header = FileHeader {
                         command: Command::Delete,
