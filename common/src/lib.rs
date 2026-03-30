@@ -11,7 +11,6 @@ pub enum Command {
     Download, // Download file
     Delete,   // Delete file
     List,     // Lists the directories from server's resource folder
-    Delete, // Deletes a file from the server
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
