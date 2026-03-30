@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use server::{server::Listener, Config, Directory, Network};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 #[tokio::main]
@@ -16,7 +18,7 @@ async fn main() -> common::Result<()> {
                 port: "8080".to_string(),
             }),
             directory: (Directory {
-                path: FILE_PATH.to_string(),
+                path: PathBuf::from(FILE_PATH),
             }),
         };
         let _ = tokio::fs::File::create(CONFIG_PATH).await?;
