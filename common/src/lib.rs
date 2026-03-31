@@ -49,6 +49,21 @@ pub enum FileHeader {
     Error(String),
 }
 
+// FileHeader Server Response Logic
+impl FileHeader {
+    /// Check if the server to client header is a Success or an Error then handle it
+    pub fn unpack_response(self) -> Result<()> {
+        match self {
+            FileHeader::Success(msg) => {
+                println!("Server: {msg}");
+                Ok(())
+            }
+            FileHeader::Error(e) => Err(VeriflowError::ServerError(e)),
+            other => Err(VeriflowError::UnexpectedFileHeader(format!("{:?}", other))),
+        }
+    }
+}
+
 // Error Type Struct for wrapping errors
 #[derive(Error, Debug)]
 pub enum VeriflowError {
