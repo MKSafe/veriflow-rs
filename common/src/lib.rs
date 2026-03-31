@@ -5,40 +5,28 @@ use thiserror::Error;
 
 // cli command arg
 // PartialEQ for unit test
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub enum Command {
-    Upload,   // Upload file
-    Download, // Download file
-    Delete,   // Delete file
-    List,     // Lists the directories from server's resource folder
-}
-
-// #[derive(Serialize, Deserialize, Debug, PartialEq)]
-// pub struct FileHeader {
-//     pub command: Command,
-//     pub name: String,
-//     pub size: u64,    
-//     pub hash: String, // hex string
-// }
-
 /// Primary header for the Veriflow protocol
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(tag = "command", content = "data")]
 pub enum FileHeader {
+    /// Upload file
     Upload {
         name: String,
         size: u64,     // u64 is standard for files
         hash: String   // hex string
     },
 
+    /// Download file
     Download {
         name: String,
     },
 
+    /// Delete file
     Delete {
         name: String,
     },
 
+    /// Lists the directories from server's resource folder
     List,               // No data required
 
     /// Server response to given request
@@ -120,8 +108,7 @@ mod tests {
         let file_name: &str = "img.png";
 
         // instantiate file header
-        let original_file_header: FileHeader = FileHeader {
-            command: Command::Download,
+        let original_file_header = FileHeader::Upload {
             name: String::from(file_name),
             size: 4001,
             hash: String::from("abc123def"),
@@ -133,6 +120,7 @@ mod tests {
 
         // test if file name is inside of json
         assert!(json_string.contains(file_name));
+        assert!(json_string.contains("Upload"));
 
         // Deserialise (String -> Struct)
         let deserialised_json_wrapped = serde_json::from_str(&json_string);
