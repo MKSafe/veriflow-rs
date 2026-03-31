@@ -52,31 +52,39 @@ pub enum FileHeader {
 // Error Type Struct for wrapping errors
 #[derive(Error, Debug)]
 pub enum VeriflowError {
-    // IO Error
+    /// IO Error
     #[error("Network/Disk Error: {0}")]
     Io(#[from] std::io::Error),
 
-    // JSON Error
+    /// JSON Error
     #[error("Serialisation Error: {0}")]
     JSON(#[from] serde_json::Error),
 
-    // File Path Error
+    /// File Path Error
     #[error("Invalid Path: Could not extract a valid filename from the provided path")]
     InvalidPath,
 
-    // Hash Mismatch Error
+    /// Hash Mismatch Error
     #[error("Hash Mismatch: The downloaded file was corrupted")]
     HashMismatch,
 
-    // Giant Header Error
+    /// Giant Header Error
     #[error("Security Alert: Requested header size {0} bytes exceeds the limit.")]
     HeaderSizeExceeded(usize),
 
-    // Giant Payload Error
+    /// Giant Payload Error
     #[error("Security Alert: Requested payload size {0} bytes exceeds the limit.")]
     PayloadSizeExceeded(usize),
 
-    //TOML Error
+    /// Unexpected File Header Error
+    #[error("Unexpected FileHeader: Received \"{0}\"")]
+    UnexpectedFileHeader(String),
+
+    /// Specific error message sent from server to client
+    #[error("Server Error: {0}")]
+    ServerError(String),
+
+    /// TOML Error
     #[error("Serialisation Error: {0}")]
     TOMLser(#[from] toml::ser::Error),
     #[error("Deserialisation Error: {0}")]
