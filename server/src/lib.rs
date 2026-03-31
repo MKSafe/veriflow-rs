@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 pub mod server;
 
@@ -13,7 +15,7 @@ pub struct Network {
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Directory {
-    pub path: String,
+    pub path: PathBuf,
 }
 #[cfg(test)]
 mod test {
