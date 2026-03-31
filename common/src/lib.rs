@@ -13,12 +13,33 @@ pub enum Command {
     List,     // Lists the directories from server's resource folder
 }
 
+// #[derive(Serialize, Deserialize, Debug, PartialEq)]
+// pub struct FileHeader {
+//     pub command: Command,
+//     pub name: String,
+//     pub size: u64,    
+//     pub hash: String, // hex string
+// }
+
+/// Primary header for the Veriflow protocol
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct FileHeader {
-    pub command: Command,
-    pub name: String,
-    pub size: u64,    // u64 is standard for files
-    pub hash: String, // hex string
+#[serde(tag = "command", content = "data")]
+pub enum FileHeader {
+    Upload {
+        name: String,
+        size: u64,     // u64 is standard for files
+        hash: String   // hex string
+    },
+
+    Download {
+        name: String,
+    },
+
+    Delete {
+        name: String,
+    },
+
+    List,               // No data required
 }
 
 // Error Type Struct for wrapping errors
