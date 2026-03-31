@@ -40,6 +40,13 @@ pub enum FileHeader {
     },
 
     List,               // No data required
+
+    /// Server response to given request
+    /// Success
+    Success(String),
+
+    /// Failure, something went wrong server-side
+    Error(String),
 }
 
 // Error Type Struct for wrapping errors
