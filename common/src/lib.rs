@@ -12,22 +12,18 @@ pub enum FileHeader {
     /// Upload file
     Upload {
         name: String,
-        size: u64,     // u64 is standard for files
-        hash: String   // hex string
+        size: u64,    // u64 is standard for files
+        hash: String, // hex string
     },
 
     /// Download file
-    Download {
-        name: String,
-    },
+    Download { name: String },
 
     /// Delete file
-    Delete {
-        name: String,
-    },
+    Delete { name: String },
 
     /// Lists the directories from server's resource folder
-    List,               // No data required
+    List, // No data required
 
     /// Server response to given request
     /// Success
@@ -48,6 +44,16 @@ impl FileHeader {
             }
             FileHeader::Error(e) => Err(VeriflowError::ServerError(e)),
             other => Err(VeriflowError::UnexpectedFileHeader(format!("{:?}", other))),
+        }
+    }
+
+    /// Helper to get the variant filename
+    pub fn path(&self) -> &str {
+        match self {
+            FileHeader::Upload { name, .. } => name,
+            FileHeader::Download { name } => name,
+            FileHeader::Delete { name } => name,
+            _ => "", // Other enums return empty string
         }
     }
 }
