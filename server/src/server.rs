@@ -1,5 +1,6 @@
 use common::{hashing, protocol::ProtocolConnection, FileHeader, VeriflowError};
 use std::io;
+use std::net::SocketAddr;
 use std::path;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
@@ -64,11 +65,10 @@ impl Listener {
             match self.listener.accept().await {
                 //when a connection is made we deal with it below
                 Ok((mut _stream, addr)) => {
-                    info!("User {} has connected.", addr,);
                     let connection = ProtocolConnection::new(_stream).await?;
                     let dir = path.clone();
                     tokio::spawn(async move {
-                        let _ = Self::handle_client(connection, dir).await;
+                        let _ = Self::handle_client(connection, addr, dir).await;
                     });
                 }
 
@@ -82,6 +82,7 @@ impl Listener {
     ///Used to concurrently handle clients
     async fn handle_client(
         mut connection: ProtocolConnection,
+        addr: SocketAddr,
         path: PathBuf,
     ) -> common::Result<()> {
         let prefix_len = connection.read_prefix().await?;
@@ -117,6 +118,7 @@ impl Listener {
         header: FileHeader,
         connection: ProtocolConnection,
         path: PathBuf,
+        addr: SocketAddr,
     ) -> common::Result<()> {
         // Get path
         let path_var = header.path();
@@ -165,6 +167,7 @@ impl Listener {
     async fn handle_download(
         mut connection: ProtocolConnection,
         path: PathBuf,
+        addr: SocketAddr,
     ) -> common::Result<()> {
         // Extract filename from PathBuf
         let filename = path
@@ -188,13 +191,17 @@ impl Listener {
         connection
             .write_file_to_stream(&mut file_to_send, file_size)
             .await?;
+        info!("{:?} has been sent to user {:?}",header.name,addr);
         Ok(())
     }
 
     ///Handles a list command request
     ///
     /// No return but it walks the resource directory and sends its contents together with the subdirectories to the client
-    async fn handle_list(mut connection: ProtocolConnection, path: PathBuf) -> common::Result<()> {
+    async fn handle_list(mut connection: ProtocolConnection, 
+        path: PathBuf,
+        addr: SocketAddr,
+    ) -> common::Result<()> {
         let mut stack = vec![path.clone()];
         let mut path_list = vec![];
         while let Some(dir) = stack.pop() {
@@ -223,6 +230,7 @@ impl Listener {
         let str_header = serde_json::to_string(&payload_header)?;
         connection.send_header(&str_header).await?;
         connection.send_data(&payload).await?;
+        info!("List successfully sent to user {:?}",addr);
         Ok(())
     }
     ///Handles a delete request
