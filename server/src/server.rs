@@ -257,9 +257,18 @@ impl Listener {
         path: PathBuf,
         addr: SocketAddr,
     ) -> common::Result<()> {
-        info!("{:?}", &path);
+        if !metadata(&path).await.is_ok() {
+            let file_name = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or(VeriflowError::InvalidPath)?;
+            FileHeader::Error(format!(
+                "Failed to delete file: {file_name} as it is not found within the directory"
+            ));
+            error!("The file could not be deleted!");
+            return Ok(());
+        }
         let md = metadata(&path).await?;
-
         // combine the fs::remove logic for directories and files
         let result = if md.is_dir() {
             fs::remove_dir_all(&path).await
