@@ -2,8 +2,7 @@
 
 use crate::ui;
 use common::{
-    hashing, protocol::ProtocolConnection, protocol::BUFFER_SIZE, Command, FileHeader,
-    VeriflowError,
+    hashing, protocol::ProtocolConnection, protocol::BUFFER_SIZE, FileHeader, VeriflowError,
 };
 use std::path::Path;
 use tokio::fs::File;
@@ -56,8 +55,7 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
     let mut connection = ProtocolConnection::new(stream).await?;
 
     // Setup FileHeader
-    let file_header: FileHeader = FileHeader {
-        command: Command::Upload,
+    let file_header: FileHeader = FileHeader::Upload {
         name: String::from(file_name),
         size: file_size,
         hash: file_hash,
@@ -108,16 +106,16 @@ pub async fn upload_file(path: &Path, ip: &str) -> common::Result<()> {
 
     // wait for server response that the file has been successfully uploaded
     println!("Waiting for server confirmation...");
+
     // get prefix
     let prefix_len = connection.read_prefix().await?;
     // get JSON bytes from stream
     let header: Vec<u8> = connection.read_body(prefix_len).await?;
-    // convert bytes into UTF-8 string
-    let string_header = String::from_utf8_lossy(&header);
-    // parse the JSON string back into a fileheader
-    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+    // convert bytes into json
+    let response: FileHeader = serde_json::from_slice(&header)?;
 
-    println!("{}", file_header.name);
+    // Check response
+    response.unpack_response()?;
 
     Ok(())
 }
@@ -140,11 +138,8 @@ pub async fn download_file(path: &Path, ip: &str, download_dir: &Path) -> common
         .ok_or(VeriflowError::InvalidPath)?;
 
     // Setup FileHeader
-    let file_header: FileHeader = FileHeader {
-        command: Command::Download,
+    let file_header: FileHeader = FileHeader::Download {
         name: String::from(file_name),
-        size: 0,             // Unknown size
-        hash: String::new(), // Unknown hash
     };
 
     // Serialise the body
@@ -160,14 +155,15 @@ pub async fn download_file(path: &Path, ip: &str, download_dir: &Path) -> common
     let prefix_len = connection.read_prefix().await?;
     // get JSON bytes from stream
     let header: Vec<u8> = connection.read_body(prefix_len).await?;
-    // convert bytes into UTF-8 string
-    let string_header = String::from_utf8_lossy(&header);
-    // parse the JSON string back into a fileheader
-    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+    // convert bytes into json
+    let file_header: FileHeader = serde_json::from_slice(&header)?;
 
     // extract size and hash from header
-    let received_size = file_header.size;
-    let received_hash = file_header.hash;
+    let (received_size, received_hash) = match file_header {
+        FileHeader::Upload { size, hash, .. } => (size, hash),
+        FileHeader::Error(e) => return Err(VeriflowError::ServerError(e)),
+        other => return Err(VeriflowError::UnexpectedFileHeader(format!("{:?}", other))),
+    };
 
     // Downloading to disk
 
@@ -231,11 +227,8 @@ pub async fn delete_file(path: &Path, ip: &str) -> common::Result<()> {
         .ok_or(VeriflowError::InvalidPath)?;
 
     // Setup FileHeader
-    let file_header: FileHeader = FileHeader {
-        command: Command::Delete,
+    let file_header: FileHeader = FileHeader::Delete {
         name: String::from(file_name),
-        size: 0,             // No size
-        hash: String::new(), // No hash
     };
 
     // Serialise the body
@@ -252,12 +245,11 @@ pub async fn delete_file(path: &Path, ip: &str) -> common::Result<()> {
     let prefix_len = connection.read_prefix().await?;
     // get JSON bytes from stream
     let header: Vec<u8> = connection.read_body(prefix_len).await?;
-    // convert bytes into UTF-8 string
-    let string_header = String::from_utf8_lossy(&header);
-    // parse the JSON string back into a fileheader
-    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+    // convert bytes into json
+    let response: FileHeader = serde_json::from_slice(&header)?;
 
-    println!("{}", file_header.name);
+    // Check response
+    response.unpack_response()?;
 
     Ok(())
 }
@@ -274,12 +266,7 @@ pub async fn list_files(ip: &str) -> common::Result<()> {
     let mut connection = ProtocolConnection::new(stream).await?;
 
     // Setup FileHeader
-    let file_header: FileHeader = FileHeader {
-        command: Command::List,
-        name: String::new(), // No name
-        size: 0,             // No size
-        hash: String::new(), // No hash
-    };
+    let file_header: FileHeader = FileHeader::List;
 
     // Serialise the body
     // JSON string
@@ -295,13 +282,15 @@ pub async fn list_files(ip: &str) -> common::Result<()> {
     let prefix_len = connection.read_prefix().await?;
     // get JSON bytes from stream
     let header: Vec<u8> = connection.read_body(prefix_len).await?;
-    // convert bytes into UTF-8 string
-    let string_header = String::from_utf8_lossy(&header);
-    // parse the JSON string back into a fileheader
-    let file_header: FileHeader = serde_json::from_str(&string_header)?;
+    // convert bytes into json
+    let file_header: FileHeader = serde_json::from_slice(&header)?;
 
-    // get size
-    let received_size = file_header.size as usize;
+    // get size from enum
+    let received_size = match file_header {
+        FileHeader::Upload { size, .. } => size as usize,
+        FileHeader::Error(e) => return Err(VeriflowError::ServerError(e)),
+        other => return Err(VeriflowError::UnexpectedFileHeader(format!("{:?}", other))),
+    };
 
     // read payload (one-shot)
     let payload_bytes = connection.read_payload(received_size).await?;

@@ -1,8 +1,4 @@
-use common::hashing;
-use common::protocol::ProtocolConnection;
-use common::Command;
-use common::FileHeader;
-use common::VeriflowError;
+use common::{hashing, protocol::ProtocolConnection, FileHeader, VeriflowError};
 use std::io;
 use std::path;
 use std::path::{Component, Path, PathBuf};
@@ -92,7 +88,7 @@ impl Listener {
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
         let file_header: FileHeader = serde_json::from_str(&string_header)?;
-        Self::handle_operation(&file_header, connection, path).await?;
+        Self::handle_operation(file_header, connection, path).await?;
         Ok(())
     }
     async fn safe_join(base: &Path, user_input: &str) -> common::Result<path::PathBuf> {
@@ -118,59 +114,48 @@ impl Listener {
     }
     ///Function to manage the client operations
     async fn handle_operation(
-        header: &FileHeader,
+        header: FileHeader,
         connection: ProtocolConnection,
         path: PathBuf,
     ) -> common::Result<()> {
-        let operation = &header.command;
-        let path_var = path.as_path();
-        let safe_path = Self::safe_join(path_var, &header.name).await?;
-        match operation {
-            Command::Upload => {
-                Self::handle_upload(header, connection, safe_path).await?;
+        // Get path
+        let path_var = header.path();
+        let safe_path = Self::safe_join(path.as_path(), path_var).await?;
+
+        match header {
+            FileHeader::Upload { size, hash, .. } => {
+                Self::handle_upload(connection, safe_path, size, hash).await?
             }
-            Command::Download => {
-                Self::handle_download(header, connection, safe_path).await?;
-            }
-            Command::List => {
-                Self::handle_list(connection, safe_path).await?;
-            }
-            Command::Delete => {
-                Self::handle_delete(connection, safe_path).await?;
-            }
+            FileHeader::Download { .. } => Self::handle_download(connection, safe_path).await?,
+            FileHeader::Delete { .. } => Self::handle_delete(connection, safe_path).await?,
+            FileHeader::List => Self::handle_list(connection, safe_path).await?,
+            // Error handling for wrong variants
+            other => return Err(VeriflowError::UnexpectedFileHeader(format!("{:?}", other))),
         }
         Ok(())
     }
     ///Handles clients' upload operation
     async fn handle_upload(
-        header: &FileHeader,
         mut connection: ProtocolConnection,
         path: PathBuf,
+        size: u64,
+        expected_hash: String,
     ) -> common::Result<()> {
-        let mut received_file = File::create(&path.as_path()).await?;
+        let mut received_file = File::create(&path).await?;
         connection
-            .read_file_to_disk(&mut received_file, header.size)
+            .read_file_to_disk(&mut received_file, size)
             .await?;
         let received_file_hash = hashing::hash_file(path.as_path(), |_| {}).await?;
-        if header.hash != received_file_hash {
+
+        if expected_hash != received_file_hash {
             fs::remove_file(path).await?;
             error!("There has been an error when comparing the expected hash to the calculated hash retry sending the file");
-            let header = FileHeader {
-                command: Command::Upload,
-                name: "Failure hash does not match".to_string(),
-                size: 0,
-                hash: ' '.to_string(),
-            };
+            let header = FileHeader::Error("Failure: Hash didn't match!".to_string());
             let str_header = serde_json::to_string(&header)?;
             connection.send_header(&str_header).await?;
         } else {
             info!("File successfuly received");
-            let header = FileHeader {
-                command: Command::Delete,
-                name: "Success".to_string(),
-                size: 0,
-                hash: ' '.to_string(),
-            };
+            let header = FileHeader::Success("File uploaded successfully!".to_string());
             let str_header = serde_json::to_string(&header)?;
             connection.send_header(&str_header).await?;
         }
@@ -178,21 +163,26 @@ impl Listener {
     }
     ///Handles a clients' download request
     async fn handle_download(
-        header: &FileHeader,
         mut connection: ProtocolConnection,
         path: PathBuf,
     ) -> common::Result<()> {
-        let filename: String = header.name.clone();
+        // Extract filename from PathBuf
+        let filename = path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "download".to_string());
+
         let mut file_to_send = File::open(&path.as_path()).await?;
         let file_meta_data = fs::metadata(&path.as_path()).await?;
         let file_size = file_meta_data.len();
         let file_hash = hashing::hash_file(path.as_path(), |_| {}).await?; // use saved .sha256 sidecar file in future
-        let file_header = FileHeader {
-            command: Command::Upload,
+
+        let file_header = FileHeader::Upload {
             name: filename,
             size: file_size,
             hash: file_hash,
         };
+
         let serialized_header = serde_json::to_string(&file_header)?;
         connection.send_header(&serialized_header).await?;
         connection
@@ -225,11 +215,10 @@ impl Listener {
         }
         info!("{:?}", path_list);
         let payload = serde_json::to_vec(&path_list)?;
-        let payload_header = FileHeader {
-            command: Command::List,
+        let payload_header = FileHeader::Upload {
             name: "list".to_string(),
             size: payload.len() as u64,
-            hash: ' '.to_string(),
+            hash: String::new(),
         };
         let str_header = serde_json::to_string(&payload_header)?;
         connection.send_header(&str_header).await?;
@@ -243,53 +232,23 @@ impl Listener {
     ) -> common::Result<()> {
         info!("{:?}", &path);
         let md = metadata(&path).await?;
-        if md.is_dir() {
-            match fs::remove_dir_all(path.as_path()).await {
-                Ok(()) => {
-                    let header = FileHeader {
-                        command: Command::Delete,
-                        name: "Success".to_string(),
-                        size: 0,
-                        hash: ' '.to_string(),
-                    };
-                    let str_header = serde_json::to_string(&header)?;
-                    connection.send_header(&str_header).await?;
-                }
-                Err(e) => {
-                    let header = FileHeader {
-                        command: Command::Delete,
-                        name: format!("Failed with error {e}").to_string(),
-                        size: 0,
-                        hash: ' '.to_string(),
-                    };
-                    let str_header = serde_json::to_string(&header)?;
-                    connection.send_header(&str_header).await?;
-                }
+
+        // combine the fs::remove logic for directories and files
+        let result = if md.is_dir() {
+            fs::remove_dir_all(&path).await
+        } else {
+            fs::remove_file(&path).await
+        };
+
+        let response_header = match result {
+            Ok(()) => {
+                FileHeader::Success("Successfully deleted the requested file/folder".to_string())
             }
-        } else if md.is_file() {
-            match fs::remove_file(path.as_path()).await {
-                Ok(()) => {
-                    let header = FileHeader {
-                        command: Command::Delete,
-                        name: "Success".to_string(),
-                        size: 0,
-                        hash: ' '.to_string(),
-                    };
-                    let str_header = serde_json::to_string(&header)?;
-                    connection.send_header(&str_header).await?;
-                }
-                Err(e) => {
-                    let header = FileHeader {
-                        command: Command::Delete,
-                        name: format!("Failed with error {e}").to_string(),
-                        size: 0,
-                        hash: ' '.to_string(),
-                    };
-                    let str_header = serde_json::to_string(&header)?;
-                    connection.send_header(&str_header).await?;
-                }
-            }
-        }
+            Err(e) => FileHeader::Error(format!("Failed to delete: {e}")),
+        };
+
+        let str_header = serde_json::to_string(&response_header)?;
+        connection.send_header(&str_header).await?;
 
         Ok(())
     }

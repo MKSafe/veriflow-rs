@@ -5,50 +5,95 @@ use thiserror::Error;
 
 // cli command arg
 // PartialEQ for unit test
+/// Primary header for the Veriflow protocol
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub enum Command {
-    Upload,   // Upload file
-    Download, // Download file
-    Delete,   // Delete file
-    List,     // Lists the directories from server's resource folder
+#[serde(tag = "command", content = "data")]
+pub enum FileHeader {
+    /// Upload file
+    Upload {
+        name: String,
+        size: u64,    // u64 is standard for files
+        hash: String, // hex string
+    },
+
+    /// Download file
+    Download { name: String },
+
+    /// Delete file
+    Delete { name: String },
+
+    /// Lists the directories from server's resource folder
+    List, // No data required
+
+    /// Server response to given request
+    /// Success
+    Success(String),
+
+    /// Failure, something went wrong server-side
+    Error(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct FileHeader {
-    pub command: Command,
-    pub name: String,
-    pub size: u64,    // u64 is standard for files
-    pub hash: String, // hex string
+// FileHeader Server Response Logic
+impl FileHeader {
+    /// Check if the server to client header is a Success or an Error then handle it
+    pub fn unpack_response(self) -> Result<()> {
+        match self {
+            FileHeader::Success(msg) => {
+                println!("Server: {msg}");
+                Ok(())
+            }
+            FileHeader::Error(e) => Err(VeriflowError::ServerError(e)),
+            other => Err(VeriflowError::UnexpectedFileHeader(format!("{:?}", other))),
+        }
+    }
+
+    /// Helper to get the variant filename
+    pub fn path(&self) -> &str {
+        match self {
+            FileHeader::Upload { name, .. } => name,
+            FileHeader::Download { name } => name,
+            FileHeader::Delete { name } => name,
+            _ => "", // Other enums return empty string
+        }
+    }
 }
 
 // Error Type Struct for wrapping errors
 #[derive(Error, Debug)]
 pub enum VeriflowError {
-    // IO Error
+    /// IO Error
     #[error("Network/Disk Error: {0}")]
     Io(#[from] std::io::Error),
 
-    // JSON Error
+    /// JSON Error
     #[error("Serialisation Error: {0}")]
     JSON(#[from] serde_json::Error),
 
-    // File Path Error
+    /// File Path Error
     #[error("Invalid Path: Could not extract a valid filename from the provided path")]
     InvalidPath,
 
-    // Hash Mismatch Error
+    /// Hash Mismatch Error
     #[error("Hash Mismatch: The downloaded file was corrupted")]
     HashMismatch,
 
-    // Giant Header Error
+    /// Giant Header Error
     #[error("Security Alert: Requested header size {0} bytes exceeds the limit.")]
     HeaderSizeExceeded(usize),
 
-    // Giant Payload Error
+    /// Giant Payload Error
     #[error("Security Alert: Requested payload size {0} bytes exceeds the limit.")]
     PayloadSizeExceeded(usize),
 
-    //TOML Error
+    /// Unexpected File Header Error
+    #[error("Unexpected FileHeader: Received \"{0}\"")]
+    UnexpectedFileHeader(String),
+
+    /// Specific error message sent from server to client
+    #[error("Server Error: {0}")]
+    ServerError(String),
+
+    /// TOML Error
     #[error("Serialisation Error: {0}")]
     TOMLser(#[from] toml::ser::Error),
     #[error("Deserialisation Error: {0}")]
@@ -69,8 +114,7 @@ mod tests {
         let file_name: &str = "img.png";
 
         // instantiate file header
-        let original_file_header: FileHeader = FileHeader {
-            command: Command::Download,
+        let original_file_header = FileHeader::Upload {
             name: String::from(file_name),
             size: 4001,
             hash: String::from("abc123def"),
@@ -82,6 +126,7 @@ mod tests {
 
         // test if file name is inside of json
         assert!(json_string.contains(file_name));
+        assert!(json_string.contains("Upload"));
 
         // Deserialise (String -> Struct)
         let deserialised_json_wrapped = serde_json::from_str(&json_string);

@@ -21,7 +21,7 @@ pub struct Directory {
 mod test {
     use crate::server::Listener;
     pub use common::protocol::ProtocolConnection;
-    pub use common::{Command, FileHeader};
+    pub use common::FileHeader;
     use tokio::net::TcpStream;
     #[tokio::test]
     async fn test_protocol_read_and_write(
@@ -48,8 +48,7 @@ mod test {
         let file_name: &str = "img.png";
 
         // instantiate file header
-        let original_file_header: FileHeader = FileHeader {
-            command: Command::Download,
+        let original_file_header = FileHeader::Upload {
             name: String::from(file_name),
             size: 4001,
             hash: String::from("abc123def"),
