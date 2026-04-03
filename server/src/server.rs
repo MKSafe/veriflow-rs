@@ -279,7 +279,9 @@ impl Listener {
         let mut response_header = FileHeader::Error("something".to_string());
         match result {
             Ok(()) => {
-                response_header = FileHeader::Success("Successfully deleted the requested file/folder".to_string());
+                response_header = FileHeader::Success(
+                    "Successfully deleted the requested file/folder".to_string(),
+                );
                 info!(
                     "Path: {:?} has been successfully deleted as per Users: {:?} request",
                     path, addr
