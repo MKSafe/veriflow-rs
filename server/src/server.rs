@@ -276,20 +276,17 @@ impl Listener {
             fs::remove_file(&path).await
         };
 
-        let mut response_header = FileHeader::Error("something".to_string());
-        match result {
+        let response_header = match result {
             Ok(()) => {
-                response_header = FileHeader::Success(
-                    "Successfully deleted the requested file/folder".to_string(),
-                );
                 info!(
                     "Path: {:?} has been successfully deleted as per Users: {:?} request",
                     path, addr
                 );
+                FileHeader::Success("Successfully deleted the requested file/folder".to_string());
             }
             Err(e) => {
-                response_header = FileHeader::Error(format!("Failed to delete: {e}"));
                 error!("Path {:?} has not been deleted due to error {:?}", path, e);
+                FileHeader::Error(format!("Failed to delete: {e}"));
             }
         };
 
