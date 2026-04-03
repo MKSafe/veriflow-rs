@@ -89,7 +89,7 @@ impl Listener {
         let header: Vec<u8> = connection.read_body(prefix_len).await?;
         let string_header = String::from_utf8_lossy(&header);
         let file_header: FileHeader = serde_json::from_str(&string_header)?;
-        Self::handle_operation(file_header, connection, path).await?;
+        Self::handle_operation(file_header, connection, path, addr).await?;
         Ok(())
     }
     async fn safe_join(base: &Path, user_input: &str) -> common::Result<path::PathBuf> {
@@ -123,14 +123,16 @@ impl Listener {
         // Get path
         let path_var = header.path();
         let safe_path = Self::safe_join(path.as_path(), path_var).await?;
-
+        info!("User: {:?} has sent a {:?} request.", addr, header);
         match header {
             FileHeader::Upload { size, hash, .. } => {
-                Self::handle_upload(connection, safe_path, size, hash).await?
+                Self::handle_upload(connection, safe_path, size, hash, addr).await?
             }
-            FileHeader::Download { .. } => Self::handle_download(connection, safe_path).await?,
-            FileHeader::Delete { .. } => Self::handle_delete(connection, safe_path).await?,
-            FileHeader::List => Self::handle_list(connection, safe_path).await?,
+            FileHeader::Download { .. } => {
+                Self::handle_download(connection, safe_path, addr).await?
+            }
+            FileHeader::Delete { .. } => Self::handle_delete(connection, safe_path, addr).await?,
+            FileHeader::List => Self::handle_list(connection, safe_path, addr).await?,
             // Error handling for wrong variants
             other => return Err(VeriflowError::UnexpectedFileHeader(format!("{:?}", other))),
         }
@@ -142,6 +144,7 @@ impl Listener {
         path: PathBuf,
         size: u64,
         expected_hash: String,
+        addr: SocketAddr,
     ) -> common::Result<()> {
         let mut received_file = File::create(&path).await?;
         connection
@@ -156,7 +159,11 @@ impl Listener {
             let str_header = serde_json::to_string(&header)?;
             connection.send_header(&str_header).await?;
         } else {
-            info!("File successfuly received");
+            info!(
+                "File: {:?} successfuly received from User {:?}",
+                path.as_path().file_name(),
+                addr
+            );
             let header = FileHeader::Success("File uploaded successfully!".to_string());
             let str_header = serde_json::to_string(&header)?;
             connection.send_header(&str_header).await?;
@@ -181,7 +188,7 @@ impl Listener {
         let file_hash = hashing::hash_file(path.as_path(), |_| {}).await?; // use saved .sha256 sidecar file in future
 
         let file_header = FileHeader::Upload {
-            name: filename,
+            name: filename.clone(),
             size: file_size,
             hash: file_hash,
         };
@@ -191,14 +198,15 @@ impl Listener {
         connection
             .write_file_to_stream(&mut file_to_send, file_size)
             .await?;
-        info!("{:?} has been sent to user {:?}",header.name,addr);
+        info!("{:?} has been sent to user {:?}", filename, addr);
         Ok(())
     }
 
     ///Handles a list command request
     ///
     /// No return but it walks the resource directory and sends its contents together with the subdirectories to the client
-    async fn handle_list(mut connection: ProtocolConnection, 
+    async fn handle_list(
+        mut connection: ProtocolConnection,
         path: PathBuf,
         addr: SocketAddr,
     ) -> common::Result<()> {
@@ -216,6 +224,13 @@ impl Listener {
                     let str_path = relative.to_string_lossy().replace("\\", "/");
                     path_list.push(str_path);
                 } else if file_type.is_dir() {
+                    let mut dir_to_check = fs::read_dir(entry_path.clone()).await?;
+                    let check_next = dir_to_check.next_entry().await?;
+                    if check_next.is_none() {
+                        let relative = entry_path.strip_prefix(&path).unwrap_or(&entry_path);
+                        let str_path = relative.to_string_lossy().replace("\\", "/");
+                        path_list.push(str_path);
+                    }
                     stack.push(entry_path);
                 }
             }
@@ -230,13 +245,14 @@ impl Listener {
         let str_header = serde_json::to_string(&payload_header)?;
         connection.send_header(&str_header).await?;
         connection.send_data(&payload).await?;
-        info!("List successfully sent to user {:?}",addr);
+        info!("List successfully sent to user {:?}", addr);
         Ok(())
     }
     ///Handles a delete request
     pub async fn handle_delete(
         mut connection: ProtocolConnection,
         path: PathBuf,
+        addr: SocketAddr,
     ) -> common::Result<()> {
         info!("{:?}", &path);
         let md = metadata(&path).await?;
@@ -250,14 +266,20 @@ impl Listener {
 
         let response_header = match result {
             Ok(()) => {
-                FileHeader::Success("Successfully deleted the requested file/folder".to_string())
+                FileHeader::Success("Successfully deleted the requested file/folder".to_string());
+                info!(
+                    "Path: {:?} has been successfully deleted as per Users: {:?} request",
+                    path, addr
+                );
             }
-            Err(e) => FileHeader::Error(format!("Failed to delete: {e}")),
+            Err(e) => {
+                FileHeader::Error(format!("Failed to delete: {e}"));
+                error!("Path {:?} has not been deleted due to error {:?}", path, e);
+            }
         };
 
         let str_header = serde_json::to_string(&response_header)?;
         connection.send_header(&str_header).await?;
-
         Ok(())
     }
     ///Accept a single tcp connection
