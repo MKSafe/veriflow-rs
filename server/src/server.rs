@@ -282,11 +282,11 @@ impl Listener {
                     "Path: {:?} has been successfully deleted as per Users: {:?} request",
                     path, addr
                 );
-                FileHeader::Success("Successfully deleted the requested file/folder".to_string());
+                FileHeader::Success("Successfully deleted the requested file/folder".to_string())
             }
             Err(e) => {
                 error!("Path {:?} has not been deleted due to error {:?}", path, e);
-                FileHeader::Error(format!("Failed to delete: {e}"));
+                FileHeader::Error(format!("Failed to delete: {e}"))
             }
         };
 
