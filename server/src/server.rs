@@ -257,7 +257,7 @@ impl Listener {
         path: PathBuf,
         addr: SocketAddr,
     ) -> common::Result<()> {
-        if !metadata(&path).await.is_ok() {
+        if metadata(&path).await.is_err() {
             let file_name = path
                 .file_name()
                 .and_then(|name| name.to_str())
@@ -276,16 +276,17 @@ impl Listener {
             fs::remove_file(&path).await
         };
 
-        let response_header = match result {
+        let mut response_header = FileHeader::Error("something".to_string());
+        match result {
             Ok(()) => {
-                FileHeader::Success("Successfully deleted the requested file/folder".to_string());
+                response_header = FileHeader::Success("Successfully deleted the requested file/folder".to_string());
                 info!(
                     "Path: {:?} has been successfully deleted as per Users: {:?} request",
                     path, addr
                 );
             }
             Err(e) => {
-                FileHeader::Error(format!("Failed to delete: {e}"));
+                response_header = FileHeader::Error(format!("Failed to delete: {e}"));
                 error!("Path {:?} has not been deleted due to error {:?}", path, e);
             }
         };
