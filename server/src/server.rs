@@ -168,6 +168,7 @@ impl Listener {
             let str_header = serde_json::to_string(&header)?;
             connection.send_header(&str_header).await?;
         }
+        connection.shutdown().await?;
         Ok(())
     }
     ///Handles a clients' download request
@@ -199,6 +200,7 @@ impl Listener {
             .write_file_to_stream(&mut file_to_send, file_size)
             .await?;
         info!("{:?} has been sent to user {:?}", filename, addr);
+        connection.shutdown().await?;
         Ok(())
     }
 
@@ -246,6 +248,7 @@ impl Listener {
         connection.send_header(&str_header).await?;
         connection.send_data(&payload).await?;
         info!("List successfully sent to user {:?}", addr);
+        connection.shutdown().await?;
         Ok(())
     }
     ///Handles a delete request
@@ -280,6 +283,7 @@ impl Listener {
 
         let str_header = serde_json::to_string(&response_header)?;
         connection.send_header(&str_header).await?;
+        connection.shutdown().await?;
         Ok(())
     }
     ///Accept a single tcp connection
