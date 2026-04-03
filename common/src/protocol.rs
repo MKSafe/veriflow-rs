@@ -172,4 +172,8 @@ impl ProtocolConnection {
 
         Ok(())
     }
+    pub async fn shutdown(mut self) -> Result<()>{
+        self.stream.shutdown().await?;
+        Ok(())
+    }
 }
