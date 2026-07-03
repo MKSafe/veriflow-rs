@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-client = { path = "../client" }
+client = { package = "Veriflow", path = "../client" } # client
 common = { path = "../common" }
 server = { path = "../server" }
+tempfile = "3.27.0"
 tokio = "1.52.3"
