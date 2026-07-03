@@ -1,0 +1,10 @@
+[package]
+name = "system_tests"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+client = { path = "../client" }
+common = { path = "../common" }
+server = { path = "../server" }
+tokio = "1.52.3"
