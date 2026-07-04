@@ -1,10 +1,10 @@
 [package]
 name = "system_tests"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
-client = { package = "Veriflow", path = "../client" } # client
+client = { package = "veriflow", path = "../client" } # client
 common = { path = "../common" }
 server = { path = "../server" }
 tempfile = "3.27.0"

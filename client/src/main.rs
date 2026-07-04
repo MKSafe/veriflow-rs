@@ -1,12 +1,8 @@
 use clap::Parser;
-
-use crate::cli::{Args, Commands};
 use common::VeriflowError;
 
-mod cli;
-mod config;
-mod transfer;
-mod ui;
+use veriflow::cli::{Args, Commands};
+use veriflow::{config, transfer};
 
 // Start tokio engine
 #[tokio::main]
