@@ -420,3 +420,26 @@ impl Listener {
         self.listener.local_addr()
     }
 }
+
+#[tokio::test]
+async fn safe_path_test() -> common::Result<()> {
+    let base_path = Path::new("/base/directory");
+    let safe_path = Listener::safe_join(base_path, "subdir/file.txt").await?;
+    assert_eq!(safe_path, Path::new("/base/directory/subdir/file.txt"));
+
+    let safe_path = Listener::safe_join(base_path, "").await?;
+    assert_eq!(safe_path, Path::new("/base/directory"));
+
+    let result = Listener::safe_join(base_path, "D:/absolute/path.txt").await;
+    assert!(result.is_err());
+
+    let result = Listener::safe_join(base_path, "../traversal/file.txt").await;
+    assert!(result.is_err());
+
+    let result = Listener::safe_join(base_path, "./current/dir/file.txt").await;
+    assert!(result.is_err());
+
+    Ok(())
+}
+
+
