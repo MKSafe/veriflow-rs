@@ -23,17 +23,16 @@ pub struct Directory {
 mod test {
     use std::path::PathBuf;
 
-use crate::FILE_PATH;
-use crate::server::Listener;
+    use crate::server::Listener;
+    use crate::FILE_PATH;
     pub use common::protocol::ProtocolConnection;
     pub use common::FileHeader;
     use tokio::fs;
-use tokio::net::TcpStream;
+    use tokio::net::TcpStream;
     #[tokio::test]
-    async fn test_protocol_read_and_write(
-    ) -> common::Result<()> {
+    async fn test_protocol_read_and_write() -> common::Result<()> {
         //made to avoid veriflow error
-        
+
         //creates a server
         let mut listener = Listener::new("127.0.0.1", "0").await?;
         let addr = listener.local_addr()?;
@@ -85,8 +84,8 @@ use tokio::net::TcpStream;
             Listener::handle_client(conn, addr, PathBuf::from(FILE_PATH)).await?;
 
             Ok(())
-            
-        }); 
+
+        });
         let stream = TcpStream::connect(addr).await?;
         let mut connection = ProtocolConnection::new(stream).await?;
         let file_path = "./test_files/images.jfif";
@@ -101,8 +100,8 @@ use tokio::net::TcpStream;
             hash: file_hash,
         };
 
-        
-        
+
+
 
         Ok(())
     }*/

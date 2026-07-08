@@ -434,5 +434,3 @@ async fn safe_path_test() -> common::Result<()> {
 
     Ok(())
 }
-
-
