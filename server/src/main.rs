@@ -44,5 +44,3 @@ async fn main() -> common::Result<()> {
     listener.listen(config_struct.directory.path).await?;
     Ok(())
 }
-
-
