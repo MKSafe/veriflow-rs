@@ -423,8 +423,17 @@ async fn safe_path_test() -> common::Result<()> {
     let safe_path = Listener::safe_join(base_path, "").await?;
     assert_eq!(safe_path, Path::new("/base/directory"));
 
-    let result = Listener::safe_join(base_path, "D:/absolute/path.txt").await;
-    assert_eq!(result.is_err(), true);
+    #[cfg(windows)]
+    {
+        let result = Listener::safe_join(base_path, "C:\\absolute\\path.txt").await;
+        assert_eq!(result.is_err(), true);
+    }
+
+    #[cfg(unix)]
+    {
+        let result = Listener::safe_join(base_path, "/absolute/path.txt").await;
+        assert_eq!(result.is_err(), true);
+    }
 
     let result = Listener::safe_join(base_path, "../traversal/file.txt").await;
     assert_eq!(result.is_err(), true);
