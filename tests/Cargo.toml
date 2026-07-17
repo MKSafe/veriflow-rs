@@ -1,0 +1,11 @@
+[package]
+name = "tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+client = { package = "veriflow", path = "../client" } # client
+common = { path = "../common" }
+server = { path = "../server" }
+tempfile = "3.27.0"
+tokio = "1.52.3"

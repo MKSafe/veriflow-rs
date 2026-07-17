@@ -1,5 +1,5 @@
 [package]
-name = "Veriflow"
+name = "veriflow"
 version = "0.1.0"
 edition = "2021"
 description = "A high-performance, asynchronous file transfer CLI built with Rust, Tokio and SHA-256 integrity verification."
