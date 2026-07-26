@@ -21,13 +21,9 @@ pub struct Directory {
 }
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-
     use crate::server::Listener;
-    use crate::FILE_PATH;
     pub use common::protocol::ProtocolConnection;
     pub use common::FileHeader;
-    use tokio::fs;
     use tokio::net::TcpStream;
     #[tokio::test]
     async fn test_protocol_read_and_write() -> common::Result<()> {
