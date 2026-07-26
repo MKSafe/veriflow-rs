@@ -73,36 +73,4 @@ mod test {
         Ok(())
     }
 
-    /*async fn test_server_upload() -> common::Result<()> {
-        /// Test of the server upload functionality
-        let mut listener = Listener::new("127.0.0.1", "0").await?;
-        let addr = listener.local_addr()?;
-        let server_task: tokio::task::JoinHandle<common::Result<()>> = tokio::spawn(async move {
-            let stream = listener.accept_once().await?;
-            let mut conn = ProtocolConnection::new(stream).await?;
-
-            Listener::handle_client(conn, addr, PathBuf::from(FILE_PATH)).await?;
-
-            Ok(())
-
-        });
-        let stream = TcpStream::connect(addr).await?;
-        let mut connection = ProtocolConnection::new(stream).await?;
-        let file_path = "./test_files/images.jfif";
-
-        let file = fs::read(file_path).await?;
-        let file_size = file.len() as u64;
-        let file_hash = common::hash_file(&file);
-
-        let file_header = FileHeader::Upload {
-            name: String::from("images.jfif"),
-            size: file_size,
-            hash: file_hash,
-        };
-
-
-
-
-        Ok(())
-    }*/
 }
