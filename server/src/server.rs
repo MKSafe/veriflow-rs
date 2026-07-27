@@ -82,7 +82,7 @@ impl Listener {
         }
     }
     ///Used to concurrently handle clients
-    async fn handle_client(
+    pub async fn handle_client(
         mut connection: ProtocolConnection,
         addr: SocketAddr,
         path: PathBuf,
@@ -412,4 +412,34 @@ impl Listener {
     pub fn local_addr(&self) -> std::io::Result<std::net::SocketAddr> {
         self.listener.local_addr()
     }
+}
+
+#[tokio::test]
+async fn safe_path_test() -> common::Result<()> {
+    let base_path = Path::new("/base/directory");
+    let safe_path = Listener::safe_join(base_path, "subdir/file.txt").await?;
+    assert_eq!(safe_path, Path::new("/base/directory/subdir/file.txt"));
+
+    let safe_path = Listener::safe_join(base_path, "").await?;
+    assert_eq!(safe_path, Path::new("/base/directory"));
+
+    #[cfg(windows)]
+    {
+        let result = Listener::safe_join(base_path, "C:\\absolute\\path.txt").await;
+        assert_eq!(result.is_err(), true);
+    }
+
+    #[cfg(unix)]
+    {
+        let result = Listener::safe_join(base_path, "/absolute/path.txt").await;
+        assert_eq!(result.is_err(), true);
+    }
+
+    let result = Listener::safe_join(base_path, "../traversal/file.txt").await;
+    assert_eq!(result.is_err(), true);
+
+    let result = Listener::safe_join(base_path, "./current/dir/file.txt").await;
+    assert_eq!(result.is_err(), true);
+
+    Ok(())
 }
